@@ -23,7 +23,7 @@ The app connects directly to the linked Supabase project using its publishable k
 
 ## Supabase project
 
-Project: `lvuoqedkkviauyluqnju` (`smart classroom managment`). Four migrations in `supabase/migrations` create the classroom schema, harden policies, secure quiz scoring, and add attendance, announcements, assignment grading and private Storage. They are recorded in Supabase migration history.
+Project: `lvuoqedkkviauyluqnju` (`smart classroom managment`). Five migrations in `supabase/migrations` create the classroom schema, harden policies, secure quiz scoring, and add attendance, announcements, assignment grading, private Storage and data-integrity checks. They are recorded in Supabase migration history.
 
 The local `supabase/.env` is Git-ignored and contains only the project URL and browser-safe publishable key. Copy `supabase/.env.example` when setting up another machine. A real secret key belongs in the Supabase Edge Function secret store; add one to the ignored local `.env` only when running Edge Functions locally. The static frontend cannot read `.env`, so it uses the public publishable key in `api.js`. That key is safe to expose; the database RLS policies protect the data.
 
