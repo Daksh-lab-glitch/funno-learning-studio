@@ -29,6 +29,11 @@ function setRole(role) {
   $("switch-account").hidden = true;
   $("student-join-panel").hidden = !(state.profile?.role === "student" && !state.student);
   $("fun-score-label").textContent = state.role === "teacher" ? "Class activity results" : "Play streak";
+  const studentLocked = state.role === "student" && !state.student;
+  $("quiz-code-gate").hidden = !studentLocked; $("quiz-list").hidden = studentLocked;
+  document.querySelector(".quiz-history").hidden = studentLocked;
+  $("games-code-gate").hidden = !studentLocked; $("fun-games-grid").hidden = studentLocked;
+  $("fun-results-list").closest(".fun-score-panel").hidden = studentLocked;
   renderClassrooms(); renderFunResults();
   renderAll();
 }
@@ -95,6 +100,7 @@ function hasSubmitted(assignment, name = myName()) { return state.submissions.so
 function renderAssignments() {
   const list = $("assignment-list"); list.replaceChildren();
   const filtered = state.assignments.filter((a) => state.assignmentFilter === "all" || (state.assignmentFilter === "open" ? !hasSubmitted(a) : hasSubmitted(a)));
+  if (state.role === "student" && !state.student) { list.append(el("div", "Enter your teacher’s verification code in Student progress to unlock assignments.", "empty-state")); return; }
   if (!filtered.length) { list.append(el("div", state.assignmentFilter === "submitted" ? "When you complete an activity, it will show up here." : "No activities yet. A fresh start is full of possibility.", "empty-state")); return; }
   filtered.forEach((assignment) => {
     const card = el("article", undefined, "assignment-card"), icon = el("span", "✳", "assignment-symbol"), main = el("div", undefined, "assignment-main");
@@ -179,16 +185,16 @@ function renderClassrooms() {
   list.replaceChildren(); picker.replaceChildren();
   state.classrooms.forEach((room) => {
     const option = el("option", room.name); option.value = room.id; option.selected = String(room.id) === String(state.activeClassroomId); picker.append(option);
-    const card = el("article", undefined, "classroom-item"), institution = room.institutions?.name || "Learning space", level = room.education_level === "university" ? room.course : room.grade;
-    card.append(el("h3", room.name), el("p", `${institution} · ${level || room.education_level}`));
-    if (state.role === "teacher" && room.join_code) { card.append(el("span", room.join_code, "class-code")); const copy = el("button", "Copy student code", "mini-button"); copy.type = "button"; copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(room.join_code); toast("Class code copied."); } catch { toast(`Share this class code: ${room.join_code}`); } }); card.append(document.createElement("br"), copy); }
+    const card = el("article", undefined, "classroom-item");
+    card.append(el("h3", "Your Funno Studio"), el("p", "Share this private verification code with your students."));
+    if (state.role === "teacher" && room.join_code) { card.append(el("span", room.join_code, "class-code")); const copy = el("button", "Copy student code", "mini-button"); copy.type = "button"; copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(room.join_code); toast("Student verification code copied."); } catch { toast(`Share this verification code: ${room.join_code}`); } }); card.append(document.createElement("br"), copy); }
     list.append(card);
   });
-  if (!state.classrooms.length) list.append(el("p", state.role === "teacher" ? "Create your first school class or university course." : "Join with the code your teacher shared.", "empty-state"));
-  $("class-picker-wrap").hidden = state.role !== "teacher" || state.classrooms.length < 2;
+  if (!state.classrooms.length) list.append(el("p", state.role === "teacher" ? "Your private activity studio is being prepared." : "Sign in, then enter the code your teacher shared.", "empty-state"));
+  $("class-picker-wrap").hidden = true;
   const active = state.classrooms.find((room) => String(room.id) === String(state.activeClassroomId));
-  if ($("studio-class-name")) { $("studio-class-name").textContent = active?.name || "Create your first class or course"; $("studio-class-detail").textContent = active ? `${active.institutions?.name || "Learning space"} · ${active.course || active.grade || active.education_level}. New materials will be shared with this class only.` : "Set up a class in School & courses, then return here to publish learning materials."; }
-  if ($("assignment-target-class")) $("assignment-target-class").textContent = active?.name || "your selected class";
+  if ($("studio-class-name")) { $("studio-class-name").textContent = "Your Funno Studio"; $("studio-class-detail").textContent = active ? "Your activities, student submissions and quiz results stay in this private workspace." : "Your private activity studio is being prepared."; }
+  if ($("assignment-target-class")) $("assignment-target-class").textContent = "your Funno Studio";
 }
 function renderChatStudentOptions() {
   const select = $("chat-student-select"), wrap = $("chat-student-wrap"); if (!select || !wrap) return;
@@ -230,13 +236,12 @@ const wordPools = {
   languages: ["POETRY", "STORY", "LETTER", "RHYTHM", "AUTHOR"],
   general: ["CURIOUS", "GARDEN", "PUZZLE", "FRIENDS", "BRIGHT"]
 };
-function currentWordPool() { const text = `${currentStudent()?.course || ""} ${currentStudent()?.grade || ""}`.toLowerCase(); return /bio|science|chem|phys|nature/.test(text) ? wordPools.science : /math|number|stat|comput|engineer/.test(text) ? wordPools.maths : /language|english|literature|history|humanit/.test(text) ? wordPools.languages : wordPools.general; }
+function currentWordPool() { return wordPools.general; }
 function newScramble() { const pool = currentWordPool(), answer = pool[Math.floor(Math.random() * pool.length)]; let letters = answer.split(""); for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; } if (letters.join("") === answer) letters.reverse(); state.scrambleAnswer = answer; $("scramble-word").textContent = letters.join(" · "); $("scramble-answer").value = ""; $("scramble-message").textContent = ""; }
-async function scoreFun(type, score) { const student = currentStudent(); if (!student) { toast("Join your class first to save your progress."); return; } try { await ClassroomAPI.saveFunResult({ student_id: student.id, activity_type: type, score }); state.funResults = await ClassroomAPI.getFunResults(); renderFunResults(); } catch (error) { showError(error, "Could not save activity"); } }
+async function scoreFun(type, score) { const student = currentStudent(); if (!student) { toast("Enter your teacher’s verification code to save your progress."); setPage("students"); return; } try { await ClassroomAPI.saveFunResult({ student_id: student.id, activity_type: type, score }); state.funResults = await ClassroomAPI.getFunResults(); renderFunResults(); } catch (error) { showError(error, "Could not save activity"); } }
 async function checkScramble() { if (!state.scrambleAnswer) newScramble(); const correct = $("scramble-answer").value.trim().toUpperCase() === state.scrambleAnswer; $("scramble-message").textContent = correct ? "You got it! A lovely bit of wordplay ✨" : "Not quite yet—have another go!"; if (correct) { await scoreFun("word-scramble", 100); newScramble(); } }
 async function renderFunResults() { const list = $("fun-results-list"); if (!list) return; list.replaceChildren(); const rows = state.funResults.filter((item) => state.role === "teacher" || String(item.student_id) === String(currentStudent()?.id)); $("fun-streak").textContent = rows.length; if (!rows.length) list.append(el("p", "Your first word, pattern or curiosity activity will appear here.", "empty-state")); rows.slice(0, 8).forEach((item) => { const student = state.students.find((record) => String(record.id) === String(item.student_id)), name = state.role === "teacher" ? `${student?.name || "Learner"} · ` : ""; list.append(el("p", `${name}${item.activity_type.replaceAll("-", " ")} · ${item.score}% · ${new Date(item.created_at).toLocaleDateString()}`)); }); }
-async function joinClassFromPortal(event) { event.preventDefault(); const note = $("student-join-message"); note.textContent = "Joining class…"; try { await ClassroomAPI.joinClass($("join-class-code").value.trim().toUpperCase(), $("join-student-name").value.trim()); await refreshData(); note.textContent = "You’re in! Your class activities are ready."; toast("Welcome to your class!"); } catch (error) { note.textContent = error.message; } }
-async function createClassroomFromPortal(event) { event.preventDefault(); const note = $("classroom-message"); note.textContent = "Creating class space…"; try { const institutionName = $("institution-name").value.trim(), institutionType = $("institution-type").value, existing = await ClassroomAPI.getInstitutions(), institution = existing.find((item) => item.name.toLowerCase() === institutionName.toLowerCase() && item.institution_type === institutionType) || await ClassroomAPI.createInstitution({ name: institutionName, institution_type: institutionType }), room = await ClassroomAPI.createClassroom({ institution_id: institution.id, name: $("classroom-name").value.trim(), education_level: $("education-level").value, grade: $("education-level").value === "school" ? $("classroom-grade").value.trim() : null, course: $("education-level").value === "university" ? $("classroom-course").value.trim() : null }); localStorage.setItem(`funno-class-${state.profile.id}`, room.id); $("classroom-form").reset(); await refreshData(); note.textContent = `Class space created. Student code: ${room.join_code}`; toast("Your class is ready."); } catch (error) { note.textContent = error.message; } }
+async function joinClassFromPortal(event) { event.preventDefault(); const note = $("student-join-message"); note.textContent = "Checking your teacher’s code…"; try { await ClassroomAPI.joinClass($("join-class-code").value.trim().toUpperCase(), $("join-student-name").value.trim()); await refreshData(); note.textContent = "Code verified. Your teacher’s activities are unlocked."; toast("Welcome to Funno!"); } catch (error) { note.textContent = error.message; } }
 
 async function refreshData() {
   try {
@@ -244,7 +249,7 @@ async function refreshData() {
     state.profile = await ClassroomAPI.getMyProfile();
     if (!state.profile) { $("entry-gate").hidden = false; return; }
     if (readPendingOnboarding()) { await completePendingOnboarding(); state.profile = await ClassroomAPI.getMyProfile(); }
-    if (state.profile.role === "teacher") state.classrooms = await ClassroomAPI.getClassrooms();
+    if (state.profile.role === "teacher") { state.classrooms = await ClassroomAPI.getClassrooms(); if (!state.classrooms.length) { await ClassroomAPI.ensureTeacherStudio(); state.classrooms = await ClassroomAPI.getClassrooms(); } state.classrooms = state.classrooms.slice(0, 1); }
     else { state.student = await ClassroomAPI.getMyStudent(); state.classrooms = await ClassroomAPI.getClassrooms(); }
     const savedClass = localStorage.getItem(`funno-class-${state.profile.id}`);
     state.activeClassroomId = state.profile.role === "student" ? Number(state.student?.classroom_id) || null : Number(savedClass) || Number(state.classrooms[0]?.id) || null;
@@ -261,11 +266,10 @@ async function refreshData() {
     state.profiles = state.profile?.role === "teacher" ? await ClassroomAPI.getProfiles() : [];
     if (state.profile?.email) rememberAccount(state.profile);
     state.role = state.profile.role;
-    $("auth-status").textContent = `Signed in as ${state.profile.display_name} · ${state.profile.role}. Your class data is saving in Supabase.`;
+    $("auth-status").textContent = `Signed in as ${state.profile.display_name} · ${state.profile.role}. Your Funno Studio data is saving in Supabase.`;
     $("auth-status").className = ""; $("auth-message").textContent = ""; $("auth-signout").hidden = false;
     $("auth-form").hidden = true; $("entry-gate").hidden = true;
     if (state.profile.role === "student" && !state.student) setPage("students");
-    if (state.profile.role === "teacher" && !state.classrooms.length) setPage("portal");
     renderChatStudentOptions();
     setRole(state.role);
   } catch (error) { showMessage(`Could not connect to Supabase: ${error.message}`, true); }
@@ -280,7 +284,7 @@ async function removeResource(id) { try { const resource = state.resources.find(
 async function addAssignment(event) {
   event.preventDefault(); const file = $("assignment-file").files[0], path = file ? `resources/${state.activeClassroomId}/assignments/${crypto.randomUUID()}/${safeFileName(file.name)}` : null;
   const value = { title: $("assignment-title").value.trim(), activity_type: $("assignment-kind").value, description: $("assignment-description").value.trim() || null, due_date: $("assignment-due").value || null, max_points: Number($("assignment-points").value), attachment_path: path, file_name: file?.name || null, file_size_bytes: file?.size || null };
-  try { if (!state.activeClassroomId) throw new Error("Create or select a class/course first."); if (file) { if (file.size > 10 * 1024 * 1024) throw new Error("Please choose a file smaller than 10 MB."); await ClassroomAPI.uploadFile(file, path); } await ClassroomAPI.addAssignment(value); event.target.reset(); closeModal($("assignment-modal")); await refreshData(); toast("Activity published to the selected class."); } catch (error) { if (path) await ClassroomAPI.deleteFile(path).catch(() => {}); showError(error, "Could not save activity"); }
+  try { if (!state.activeClassroomId) throw new Error("Your Funno Studio is still being prepared. Refresh and try again."); if (file) { if (file.size > 10 * 1024 * 1024) throw new Error("Please choose a file smaller than 10 MB."); await ClassroomAPI.uploadFile(file, path); } await ClassroomAPI.addAssignment(value); event.target.reset(); closeModal($("assignment-modal")); await refreshData(); toast("Activity published to your students."); } catch (error) { if (path) await ClassroomAPI.deleteFile(path).catch(() => {}); showError(error, "Could not save activity"); }
 }
 async function completeAssignment(assignment) {
   const student = currentStudent(); if (!student) { toast("Ask your teacher to add your learner profile first."); return; }
@@ -310,6 +314,7 @@ async function createQuiz(event) {
 }
 function startQuiz(quiz) {
   if (state.role === "teacher") { toast("Switch to student view to try this quiz."); return; }
+  if (!state.student) { toast("Enter your teacher’s verification code to unlock this quiz."); setPage("students"); return; }
   state.currentQuiz = quiz; $("play-title").textContent = quiz.title; $("quiz-message").textContent = ""; $("play-questions").replaceChildren();
   (quiz.questions || []).forEach((question, index) => { const block = el("div", undefined, "play-question"); block.append(el("h3", `${index + 1}. ${question.prompt}`)); const options = el("div", undefined, "play-options"); question.options.forEach((option, optionIndex) => { const label = el("label", undefined, "play-option"), input = document.createElement("input"); input.type = "radio"; input.name = `q-${index}`; input.value = String(optionIndex); input.required = true; label.append(input, document.createTextNode(option)); options.append(label); }); block.append(options); $("play-questions").append(block); }); openModal("play-modal");
 }
@@ -346,13 +351,8 @@ function setEntryMode(mode) {
 function updateEntryRole() {
   const role = $("entry-role").value, signingIn = state.entryMode === "signin";
   $("signup-next-step").textContent = role === "teacher"
-    ? signingIn ? "Teacher sign-in opens your teaching dashboard, classes and student results." : "Teacher accounts open the teacher portal to create classes and courses."
-    : signingIn ? "Student sign-in opens your class activities and personal results." : "Student accounts join a class after sign-up using a teacher’s code.";
-}
-function updateClassroomFields() {
-  const level = $("education-level").value, university = level === "university";
-  $("grade-field").hidden = level !== "school"; $("course-field").hidden = !university;
-  $("classroom-grade").required = level === "school"; $("classroom-course").required = university;
+    ? signingIn ? "Teacher sign-in opens your activity studio and student results." : "Create a teacher account to publish assignments, games and quizzes."
+    : signingIn ? "Student sign-in opens your learning activities and results." : "After creating an account, enter your teacher’s verification code to unlock activities.";
 }
 function readPendingOnboarding() { try { return JSON.parse(localStorage.getItem("funno-pending-onboarding") || "null"); } catch { return null; } }
 async function completePendingOnboarding() {
@@ -385,13 +385,13 @@ async function authenticateEntry(event) {
     }
     $("entry-password").value = ""; await refreshData();
     if (!state.profile) throw new Error("We couldn’t load your account profile. Check the Supabase migration and try again.");
-    toast(state.profile.role === "teacher" ? (state.classrooms.length ? "Your teacher studio is ready." : "Start by creating a class or course.") : state.student ? "Welcome to your class." : "Join a class using the code from your teacher.");
+    toast(state.profile.role === "teacher" ? "Your Funno Studio is ready." : state.student ? "Welcome to your Funno Studio." : "Enter the verification code from your teacher.");
   } catch (error) {
     let session = null; try { session = JSON.parse(localStorage.getItem("funno-auth-session") || "null"); } catch { session = null; }
     if (session?.access_token) {
       await refreshData();
       if (state.profile?.role === "student" && !state.student) $("student-join-message").textContent = error.message;
-      else if (state.profile?.role === "teacher") { $("classroom-message").textContent = `${error.message} You can finish the setup below.`; setPage("portal"); }
+      else if (state.profile?.role === "teacher") { showMessage(`Could not prepare your Funno Studio: ${error.message}`, true); }
       else message.textContent = error.message;
     } else message.textContent = error.message;
   }
@@ -404,7 +404,7 @@ async function signOut() {
 function bindUI() {
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
   document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.go)));
-  document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.open)));
+  document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.assignmentKind) $("assignment-kind").value = button.dataset.assignmentKind; openModal(button.dataset.open); }));
   document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => closeModal(button.closest(".modal-backdrop"))));
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeModal(backdrop); }));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); });
@@ -417,8 +417,7 @@ function bindUI() {
   $("entry-auth-form").addEventListener("submit", authenticateEntry);
   $("entry-signin-tab").addEventListener("click", () => setEntryMode("signin")); $("entry-signup-tab").addEventListener("click", () => setEntryMode("signup"));
   $("entry-role").addEventListener("change", updateEntryRole);
-  $("education-level").addEventListener("change", updateClassroomFields);
-  $("classroom-form").addEventListener("submit", createClassroomFromPortal); $("student-join-form").addEventListener("submit", joinClassFromPortal);
+  $("student-join-form").addEventListener("submit", joinClassFromPortal);
   $("class-picker").addEventListener("change", async (event) => { state.activeClassroomId = Number(event.target.value) || null; localStorage.setItem(`funno-class-${state.profile.id}`, state.activeClassroomId); ClassroomAPI.setActiveClassroom(state.activeClassroomId); await refreshData(); });
   $("chat-form").addEventListener("submit", sendChatMessage); $("refresh-chat").addEventListener("click", loadChat); $("chat-student-select").addEventListener("change", loadChat);
   $("check-scramble").addEventListener("click", checkScramble);
@@ -435,5 +434,5 @@ function bindUI() {
 }
 
 const now = new Date(); $("today-date").textContent = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-bindUI(); addQuestionCard(0); setEntryMode("signin"); updateClassroomFields(); setRole("student"); refreshData();
+bindUI(); addQuestionCard(0); setEntryMode("signin"); setRole("student"); refreshData();
 setInterval(() => { if (state.profile && $("help-chat").classList.contains("active")) loadChat(); }, 15000);
