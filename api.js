@@ -2,10 +2,6 @@
 // security governs access. Never put a Supabase service-role key in this file.
 window.CLASSROOM_SUPABASE_URL = window.CLASSROOM_SUPABASE_URL || "https://lvuoqedkkviauyluqnju.supabase.co";
 window.CLASSROOM_SUPABASE_KEY = window.CLASSROOM_SUPABASE_KEY || "sb_publishable_HWLlokI0MzFclcdEuxizhA_xXe8iKsJ";
-// Add the Cloudflare Turnstile site key here after creating a widget. The matching
-// secret belongs only in Supabase Auth > Bot and Abuse Protection.
-window.CLASSROOM_TURNSTILE_SITE_KEY = window.CLASSROOM_TURNSTILE_SITE_KEY || "";
-
 (() => {
   const url = window.CLASSROOM_SUPABASE_URL.replace(/\/$/, "");
   const key = window.CLASSROOM_SUPABASE_KEY;
@@ -88,13 +84,13 @@ window.CLASSROOM_TURNSTILE_SITE_KEY = window.CLASSROOM_TURNSTILE_SITE_KEY || "";
   const nextId = (table) => Math.max(0, ...list(table).map((row) => Number(row.id) || 0)) + 1;
   window.ClassroomAPI = {
     ready() { return modeReady; },
-    async signIn(email, password, captchaToken = null) {
-      const response = await fetch(`${url}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify({ email, password, ...(captchaToken ? { captcha_token: captchaToken } : {}) }) });
+    async signIn(email, password) {
+      const response = await fetch(`${url}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
       const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.msg || data.message || data.error_description || "Could not sign in.");
       accessToken = data.access_token; localStorage.setItem("funno-auth-session", JSON.stringify(data)); modeReady = selectMode(); await modeReady; return data;
     },
-    async signUp(email, password, displayName, captchaToken = null) {
-      const response = await fetch(`${url}/auth/v1/signup`, { method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify({ email, password, data: { display_name: displayName }, ...(captchaToken ? { captcha_token: captchaToken } : {}) }) });
+    async signUp(email, password, displayName) {
+      const response = await fetch(`${url}/auth/v1/signup`, { method: "POST", headers: { apikey: key, "Content-Type": "application/json" }, body: JSON.stringify({ email, password, data: { display_name: displayName } }) });
       const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.msg || data.message || data.error_description || "Could not create account.");
       if (data.access_token) { accessToken = data.access_token; localStorage.setItem("funno-auth-session", JSON.stringify(data)); modeReady = selectMode(); await modeReady; }
       return data;

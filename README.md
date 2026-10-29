@@ -26,13 +26,7 @@ Project: `lvuoqedkkviauyluqnju` (`smart classroom managment`). Apply the migrati
 
 The local `supabase/.env` is Git-ignored and contains the project URL and browser-safe publishable key. Copy `supabase/.env.example` when setting up another machine. A secret/service-role key belongs only in Supabase's Edge Function secret store. The static frontend cannot read `.env`, so it uses the public publishable key in `api.js`; RLS policies protect database records.
 
-### Cloudflare Turnstile
-
-1. Create a Turnstile widget in Cloudflare and allow your hosted domain plus `localhost`/`127.0.0.1` while developing.
-2. Put the **site key** in `window.CLASSROOM_TURNSTILE_SITE_KEY` in `api.js`.
-3. In Supabase Dashboard → **Authentication → Bot and Abuse Protection**, enable CAPTCHA, choose **Turnstile**, paste the matching **secret key**, and save.
-
-The site key is public and belongs in the frontend. Keep the secret key out of `api.js`, `.env.example`, and Git. When the site key is configured, Funno requires a completed Turnstile check for sign-up/sign-in and Supabase verifies the token with the secret key.
+Sign-in uses email and password. Choose Student or Teacher on the entry screen; the app checks that the selected account type matches the account saved in Supabase before opening the relevant workspace. The frontend no longer loads or sends Cloudflare Turnstile challenges.
 
 ## Set up a classroom
 

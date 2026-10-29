@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const state = { students: [], resources: [], assignments: [], submissions: [], quizzes: [], results: [], attendance: [], announcements: [], profiles: [], classrooms: [], profile: null, student: null, messages: [], funResults: [], activeClassroomId: null, role: "student", resourceFilter: "all", assignmentFilter: "all", currentQuiz: null, currentAssignment: null, toastTimer: null, turnstileId: null, captchaToken: null, entryMode: "signin" };
+const state = { students: [], resources: [], assignments: [], submissions: [], quizzes: [], results: [], attendance: [], announcements: [], profiles: [], classrooms: [], profile: null, student: null, messages: [], funResults: [], activeClassroomId: null, role: "student", resourceFilter: "all", assignmentFilter: "all", currentQuiz: null, currentAssignment: null, toastTimer: null, entryMode: "signin" };
 const initials = (name = "?") => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("");
 const safeDate = (value) => value ? new Date(`${value}T12:00:00`) : null;
 const dateText = (value) => { const date = safeDate(value); return date ? date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "No due date"; };
@@ -344,60 +344,52 @@ function setEntryMode(mode) {
   updateEntryRole();
 }
 function updateEntryRole() {
-  const signup = state.entryMode === "signup", role = $("entry-role").value;
-  $("signup-next-step").textContent = role === "teacher" ? "You can set up one or more classes and courses after creating your account." : "You can join your class after creating your account.";
+  const role = $("entry-role").value, signingIn = state.entryMode === "signin";
+  $("signup-next-step").textContent = role === "teacher"
+    ? signingIn ? "Teacher sign-in opens your teaching dashboard, classes and student results." : "Teacher accounts open the teacher portal to create classes and courses."
+    : signingIn ? "Student sign-in opens your class activities and personal results." : "Student accounts join a class after sign-up using a teacher’s code.";
 }
 function updateClassroomFields() {
   const level = $("education-level").value, university = level === "university";
   $("grade-field").hidden = university; $("course-field").hidden = !university;
   $("classroom-grade").required = level === "school"; $("classroom-course").required = university;
 }
-function resetTurnstile() { state.captchaToken = null; if (state.turnstileId !== null && window.turnstile) window.turnstile.reset(state.turnstileId); }
-function initTurnstile() {
-  const siteKey = window.CLASSROOM_TURNSTILE_SITE_KEY;
-  if (!siteKey) return;
-  $("turnstile-note").hidden = true; $("turnstile-box").hidden = false;
-  const render = () => {
-    if (!window.turnstile || state.turnstileId !== null) return;
-    state.turnstileId = window.turnstile.render("#turnstile-widget", { sitekey: siteKey, callback: (token) => { state.captchaToken = token; }, "expired-callback": () => { state.captchaToken = null; }, "error-callback": () => { state.captchaToken = null; $("entry-message").textContent = "Turnstile could not load. Refresh and try again."; } });
-  };
-  if (window.turnstile) render(); else if (!document.querySelector("script[data-turnstile-loader]")) {
-    const script = document.createElement("script"); script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; script.async = true; script.defer = true; script.dataset.turnstileLoader = "true"; script.onload = render; document.head.append(script);
-  }
-}
-function readPendingOnboarding() { try { return JSON.parse(sessionStorage.getItem("funno-pending-onboarding") || "null"); } catch { return null; } }
+function readPendingOnboarding() { try { return JSON.parse(localStorage.getItem("funno-pending-onboarding") || "null"); } catch { return null; } }
 async function completePendingOnboarding() {
   const pending = readPendingOnboarding(); if (!pending) return;
   const profile = await ClassroomAPI.getMyProfile();
   if (!profile || profile.email.toLowerCase() !== String(pending.email || "").toLowerCase()) return;
   if (pending.role === "teacher" && profile.role !== "teacher") await ClassroomAPI.requestTeacherRole();
-  sessionStorage.removeItem("funno-pending-onboarding");
+  localStorage.removeItem("funno-pending-onboarding");
 }
 async function authenticateEntry(event) {
   event.preventDefault(); const message = $("entry-message"), email = $("entry-email").value.trim(), password = $("entry-password").value;
   message.textContent = "Connecting securely…"; $("entry-auth-form").setAttribute("aria-busy", "true");
   try {
-    if (window.CLASSROOM_TURNSTILE_SITE_KEY && !state.captchaToken) throw new Error("Complete the Cloudflare check before continuing.");
+    const selectedRole = $("entry-role").value;
     if (state.entryMode === "signup") {
-      const role = $("entry-role").value, name = $("entry-name").value.trim();
-      const pending = { role, email: email.toLowerCase() };
-      sessionStorage.setItem("funno-pending-onboarding", JSON.stringify(pending));
-      const result = await ClassroomAPI.signUp(email, password, name, state.captchaToken);
-      resetTurnstile();
-      if (!result.access_token) { message.textContent = "Account created. Confirm your email, then sign in. Your class setup is waiting in the portal."; return; }
+      const name = $("entry-name").value.trim(), pending = { role: selectedRole, email: email.toLowerCase() };
+      localStorage.setItem("funno-pending-onboarding", JSON.stringify(pending));
+      const result = await ClassroomAPI.signUp(email, password, name);
+      if (!result.access_token) { message.textContent = `Account created as ${selectedRole}. Confirm your email, then choose ${selectedRole} here to sign in.`; return; }
       await completePendingOnboarding();
     } else {
-      await ClassroomAPI.signIn(email, password, state.captchaToken); resetTurnstile();
+      await ClassroomAPI.signIn(email, password);
       await completePendingOnboarding();
+    }
+    const profile = await ClassroomAPI.getMyProfile();
+    if (!profile) throw new Error("We couldn’t load your account profile. Check the Supabase migration and try again.");
+    if (profile.role !== selectedRole) {
+      await ClassroomAPI.signOut();
+      throw new Error(`This email belongs to a ${profile.role} account. Choose ${profile.role} above and sign in again.`);
     }
     $("entry-password").value = ""; await refreshData();
     if (!state.profile) throw new Error("We couldn’t load your account profile. Check the Supabase migration and try again.");
     toast(state.profile.role === "teacher" ? (state.classrooms.length ? "Your teacher studio is ready." : "Start by creating a class or course.") : state.student ? "Welcome to your class." : "Join a class using the code from your teacher.");
   } catch (error) {
-    resetTurnstile();
     let session = null; try { session = JSON.parse(localStorage.getItem("funno-auth-session") || "null"); } catch { session = null; }
     if (session?.access_token) {
-      sessionStorage.removeItem("funno-pending-onboarding"); await refreshData();
+      await refreshData();
       if (state.profile?.role === "student" && !state.student) $("student-join-message").textContent = error.message;
       else if (state.profile?.role === "teacher") { $("classroom-message").textContent = `${error.message} You can finish the setup below.`; setPage("portal"); }
       else message.textContent = error.message;
@@ -443,5 +435,5 @@ function bindUI() {
 }
 
 const now = new Date(); $("today-date").textContent = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-bindUI(); addQuestionCard(0); setEntryMode("signin"); updateClassroomFields(); initTurnstile(); setRole("student"); refreshData();
+bindUI(); addQuestionCard(0); setEntryMode("signin"); updateClassroomFields(); setRole("student"); refreshData();
 setInterval(() => { if (state.profile && $("help-chat").classList.contains("active")) loadChat(); }, 15000);
