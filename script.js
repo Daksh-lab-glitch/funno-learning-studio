@@ -351,7 +351,7 @@ function updateEntryRole() {
 }
 function updateClassroomFields() {
   const level = $("education-level").value, university = level === "university";
-  $("grade-field").hidden = university; $("course-field").hidden = !university;
+  $("grade-field").hidden = level !== "school"; $("course-field").hidden = !university;
   $("classroom-grade").required = level === "school"; $("classroom-course").required = university;
 }
 function readPendingOnboarding() { try { return JSON.parse(localStorage.getItem("funno-pending-onboarding") || "null"); } catch { return null; } }

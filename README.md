@@ -12,7 +12,7 @@ The opening screen is a simple sign-in or account creation form. After signing u
 
 - Sign-in and account creation for teachers and students.
 - Teacher Studio for publishing to the currently selected class or course.
-- Teacher portal for schools, universities, grades, classes, courses and student join codes.
+- Teacher portal for schools, Grades 1–12, university courses and private student join codes.
 - Lesson library for links, files and notes.
 - Assignments, projects, discussions and fun challenges with private file attachments, student submissions, teacher grading and feedback.
 - Teacher attendance, class announcements, quick quizzes and results.
