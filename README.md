@@ -1,37 +1,43 @@
 # Funno Learning Studio
 
-A responsive classroom interface for a teacher-managed class and student learning view. The visual direction uses a calm botanical palette, roomy cards and lightweight motion. It takes inspiration from common smart-classroom workflows—lesson and resource libraries, activities, gamified quizzes and progress snapshots—without copying the linked vendor page.
+A responsive learning space for schools, universities and other teaching groups. Funno includes private teacher portals for separate classes/courses, class-code enrollment, assignments, quizzes, a playful activity room, progress review and a private teacher–student help chat.
 
-## Frontend preview
+## Run the frontend
 
-The frontend is in `index.html`, `style.css`, `addons.css`, `script.js`, and `api.js`. Open the folder with VS Code Live Server (or run `python -m http.server 5500` from this directory) and visit `http://127.0.0.1:5500`.
+Open this folder with VS Code Live Server, or run `python -m http.server 5500` here and visit `http://127.0.0.1:5500`.
 
-The app connects directly to the linked Supabase project using its publishable key and Supabase Auth. When signed out, it displays sample data and keeps preview edits in this browser. After sign-in, class data is saved in Supabase. The browser never contains a service-role key.
+The opening screen requires a Supabase account. Teachers set up their school/institution and one or more class/course spaces; students create their own accounts and join using a code from their teacher. Classroom data is stored in Supabase and protected by classroom-scoped row-level security.
 
-## Included frontend sections
+## Features
 
-- Overview with learner count, progress snapshot, resource count, activities and check-ins.
-- Lessons and library for reusable lesson links, files and notes.
-- Activities with due dates, written/file submissions, teacher grading and private feedback.
-- Daily teacher attendance check-ins with learner-only attendance history.
-- Class announcements, scheduled publishing and in-app reminder times.
-- Quick quizzes with teacher authoring and student score history.
-- Student progress with learner records and assessment results.
-- Teaching insights and classroom feedback.
-- Class settings for managing learner records.
-- Password-confirmed learner account switching for shared devices. Only account email/name are remembered locally; passwords are never stored.
+- Sign-in and account creation for teachers and students.
+- Teacher portal for schools, universities, grades, classes, courses and student join codes.
+- Lesson library for links, files and notes.
+- Assignments with student submissions, teacher grading and private feedback.
+- Teacher attendance, class announcements, quick quizzes and results.
+- Funno Playroom with a word scramble, number patterns and curiosity breaks. Student results are saved.
+- Private messages between a learner and the teacher who owns their class.
+- Teacher progress view for the class roster, assessments, attendance, submissions and Funno activities.
 
-## Supabase project
+## Supabase
 
-Project: `lvuoqedkkviauyluqnju` (`smart classroom managment`). Five migrations in `supabase/migrations` create the classroom schema, harden policies, secure quiz scoring, and add attendance, announcements, assignment grading, private Storage and data-integrity checks. They are recorded in Supabase migration history.
+Project: `lvuoqedkkviauyluqnju` (`smart classroom managment`). Apply the migrations in `supabase/migrations` to create the classroom schema, row-level security, quiz scoring, attendance, announcements, assignment grading, private Storage, multi-class portals, class enrollment and teacher chat. In particular, apply `20261029130000_funno_multiclass_teacher_portal.sql` before using these new screens.
 
-The local `supabase/.env` is Git-ignored and contains only the project URL and browser-safe publishable key. Copy `supabase/.env.example` when setting up another machine. A real secret key belongs in the Supabase Edge Function secret store; add one to the ignored local `.env` only when running Edge Functions locally. The static frontend cannot read `.env`, so it uses the public publishable key in `api.js`. That key is safe to expose; the database RLS policies protect the data.
+The local `supabase/.env` is Git-ignored and contains the project URL and browser-safe publishable key. Copy `supabase/.env.example` when setting up another machine. A secret/service-role key belongs only in Supabase's Edge Function secret store. The static frontend cannot read `.env`, so it uses the public publishable key in `api.js`; RLS policies protect database records.
 
-## Getting started with real class data
+### Cloudflare Turnstile
 
-1. Open **Class settings** and create the first account. The first account in this new classroom is assigned the teacher role; later accounts are student accounts.
-2. Add learner records from **Class settings**.
-3. Have each learner create an account, then sign out and back in as the teacher. Use **Link a learner to their sign-in** to connect each student account to its roster record.
-4. Students can then sign in and see their own progress, activity submissions and quiz results. Lesson resources and quizzes are available to signed-in class members. Quiz answers stay in a teacher-only table and scores are computed by the deployed `submit-quiz-result` Edge Function.
+1. Create a Turnstile widget in Cloudflare and allow your hosted domain plus `localhost`/`127.0.0.1` while developing.
+2. Put the **site key** in `window.CLASSROOM_TURNSTILE_SITE_KEY` in `api.js`.
+3. In Supabase Dashboard → **Authentication → Bot and Abuse Protection**, enable CAPTCHA, choose **Turnstile**, paste the matching **secret key**, and save.
 
-The role switch is for local preview only. Authenticated users get their role from the Supabase profile and RLS policies enforce teacher and student permissions. Supabase email confirmation settings may require users to confirm their address before their first sign-in. Storage uses a private `classroom-files` bucket with a 10 MB limit and PDF, Office document, text and common image file types. Class reminders currently appear in the dashboard/class board; email and push notifications are not configured.
+The site key is public and belongs in the frontend. Keep the secret key out of `api.js`, `.env.example`, and Git. When the site key is configured, Funno requires a completed Turnstile check for sign-up/sign-in and Supabase verifies the token with the secret key.
+
+## Set up a classroom
+
+1. Create a teacher account in Funno and enter the school/institution plus the first class or university course.
+2. Open **School & courses** to copy that class's join code or create more class/course spaces.
+3. Each learner creates an account, selects Student and enters their teacher's code. Students see their enrolled class's work and their own results.
+4. Teachers create assignments and quizzes, review work and use **Ask for help** to message each learner privately.
+
+Teacher permissions are limited to class spaces owned by that teacher. Class join codes are only shown to teachers. Email confirmation follows the Supabase project's Auth settings. Files stay in the private `classroom-files` bucket (10 MB limit). Class reminders currently appear in the app; email and push notifications are not configured.
