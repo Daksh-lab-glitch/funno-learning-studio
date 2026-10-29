@@ -190,6 +190,7 @@ function renderClassrooms() {
     if (state.role === "teacher" && room.join_code) { card.append(el("span", room.join_code, "class-code")); const copy = el("button", "Copy student code", "mini-button"); copy.type = "button"; copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(room.join_code); toast("Student verification code copied."); } catch { toast(`Share this verification code: ${room.join_code}`); } }); card.append(document.createElement("br"), copy); }
     list.append(card);
   });
+  if (state.role === "teacher" && $("teacher-access-code")) $("teacher-access-code").value = state.classrooms[0]?.join_code || "";
   if (!state.classrooms.length) list.append(el("p", state.role === "teacher" ? "Your private activity studio is being prepared." : "Sign in, then enter the code your teacher shared.", "empty-state"));
   $("class-picker-wrap").hidden = true;
   const active = state.classrooms.find((room) => String(room.id) === String(state.activeClassroomId));
@@ -242,6 +243,7 @@ async function scoreFun(type, score) { const student = currentStudent(); if (!st
 async function checkScramble() { if (!state.scrambleAnswer) newScramble(); const correct = $("scramble-answer").value.trim().toUpperCase() === state.scrambleAnswer; $("scramble-message").textContent = correct ? "You got it! A lovely bit of wordplay ✨" : "Not quite yet—have another go!"; if (correct) { await scoreFun("word-scramble", 100); newScramble(); } }
 async function renderFunResults() { const list = $("fun-results-list"); if (!list) return; list.replaceChildren(); const rows = state.funResults.filter((item) => state.role === "teacher" || String(item.student_id) === String(currentStudent()?.id)); $("fun-streak").textContent = rows.length; if (!rows.length) list.append(el("p", "Your first word, pattern or curiosity activity will appear here.", "empty-state")); rows.slice(0, 8).forEach((item) => { const student = state.students.find((record) => String(record.id) === String(item.student_id)), name = state.role === "teacher" ? `${student?.name || "Learner"} · ` : ""; list.append(el("p", `${name}${item.activity_type.replaceAll("-", " ")} · ${item.score}% · ${new Date(item.created_at).toLocaleDateString()}`)); }); }
 async function joinClassFromPortal(event) { event.preventDefault(); const note = $("student-join-message"); note.textContent = "Checking your teacher’s code…"; try { await ClassroomAPI.joinClass($("join-class-code").value.trim().toUpperCase(), $("join-student-name").value.trim()); await refreshData(); note.textContent = "Code verified. Your teacher’s activities are unlocked."; toast("Welcome to Funno!"); } catch (error) { note.textContent = error.message; } }
+async function saveTeacherCode(event) { event.preventDefault(); const input = $("teacher-access-code"), note = $("teacher-code-message"), code = input.value.trim().toUpperCase(); if (!/^[A-Z0-9]{6,12}$/.test(code)) { note.textContent = "Use 6–12 letters or numbers."; return; } note.textContent = "Saving your code…"; try { const saved = await ClassroomAPI.setTeacherStudioCode(code); input.value = String(saved || code).replaceAll('"', ""); await refreshData(); note.textContent = "Your verification code is saved. Share it with your students."; toast("Student code updated."); } catch (error) { note.textContent = error.message.includes("already in use") ? "That code is already in use. Please choose another." : error.message; } }
 
 async function refreshData() {
   try {
@@ -418,6 +420,7 @@ function bindUI() {
   $("entry-signin-tab").addEventListener("click", () => setEntryMode("signin")); $("entry-signup-tab").addEventListener("click", () => setEntryMode("signup"));
   $("entry-role").addEventListener("change", updateEntryRole);
   $("student-join-form").addEventListener("submit", joinClassFromPortal);
+  $("teacher-code-form").addEventListener("submit", saveTeacherCode);
   $("class-picker").addEventListener("change", async (event) => { state.activeClassroomId = Number(event.target.value) || null; localStorage.setItem(`funno-class-${state.profile.id}`, state.activeClassroomId); ClassroomAPI.setActiveClassroom(state.activeClassroomId); await refreshData(); });
   $("chat-form").addEventListener("submit", sendChatMessage); $("refresh-chat").addEventListener("click", loadChat); $("chat-student-select").addEventListener("change", loadChat);
   $("check-scramble").addEventListener("click", checkScramble);

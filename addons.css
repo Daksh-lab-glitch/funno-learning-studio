@@ -10,3 +10,9 @@
 .activity-access-gate b { display: block; margin-bottom: .4rem; color: #174940; font-size: 1.05rem; }
 .activity-access-gate p { margin: 0 0 1rem; color: #6e8580; }
 .activity-access-gate[hidden] { display: none !important; }
+.teacher-code-form { display: grid; gap: 8px; margin-top: 14px; max-width: 560px; }
+.teacher-code-form label { color: #31584e; font-size: 12px; font-weight: 700; }
+.teacher-code-controls { display: flex; flex-wrap: wrap; gap: 9px; }
+.teacher-code-controls input { flex: 1 1 220px; min-width: 0; padding: 10px 12px; border: 1px solid #dce7df; border-radius: 9px; color: #213b3c; text-transform: uppercase; letter-spacing: .08em; }
+.teacher-code-form small, .teacher-code-form p { color: #71827b; font-size: 11px; }
+.teacher-code-form p { margin: 0; }

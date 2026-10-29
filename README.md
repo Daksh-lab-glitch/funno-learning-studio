@@ -31,7 +31,7 @@ Sign-in uses email and password. Choose Student or Teacher on the entry screen; 
 ## Teacher and student access
 
 1. Create a teacher account in Funno with name, email, password and account type.
-2. A teacher's **Student access code** page shows the private verification code to share.
+2. A teacher's **Student access code** page shows the private verification code to share; teachers can also set a unique 6–12 character code using letters and numbers.
 3. Students create an account or sign in, open **Student progress**, enter their name and the teacher's code, and unlock that teacher's assignments, games and quizzes.
 4. Teachers publish assignments, projects, discussions, fun challenges, quizzes, lessons and private file uploads from **Teacher Studio**. They can review student submissions and quiz results there.
 
