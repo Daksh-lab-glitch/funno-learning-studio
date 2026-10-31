@@ -20,7 +20,22 @@ function setRole(role) {
   $("role-switch").hidden = Boolean(state.profile);
   $("switch-account").hidden = !(state.profile?.role === "teacher" || state.profile?.role === "student");
   $("welcome-subtitle").textContent = role === "teacher" ? "A little curiosity goes a long way. Here’s your class at a glance." : `Welcome back, ${myName().split(" ")[0]}. Your learning story is right here.`;
+  const welcomeHeading = $("welcome-heading"); welcomeHeading.replaceChildren();
+  if (role === "teacher") { welcomeHeading.append(document.createTextNode("Make today "), el("em", "count.")); }
+  else { welcomeHeading.append(document.createTextNode(`Hello, ${myName().split(" ")[0]} `), el("em", "✦")); }
+  const studentHomeTitle = $("student-home-title"), studentHomeCopy = $("student-home-copy"), connectButton = $("student-home-connect");
+  if (studentHomeTitle && studentHomeCopy && connectButton) {
+    studentHomeTitle.textContent = state.student ? `Welcome to your studio, ${myName().split(" ")[0]}!` : "Let’s find your classroom.";
+    studentHomeCopy.textContent = state.student ? "Your teacher’s activities, class resources and your results are ready in one place. Pick what you’d like to do next." : "Sign in is done. Ask your teacher for their studio code, then connect here to unlock assignments, quizzes and games.";
+    connectButton.hidden = Boolean(state.student);
+  }
+  const studentsNav = document.querySelector('.nav-btn[data-page="students"]');
+  const studentsNavLabel = [...(studentsNav?.childNodes || [])].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+  if (studentsNavLabel) studentsNavLabel.textContent = role === "student" ? " My progress" : " Student progress";
+  $("upcoming-eyebrow").textContent = role === "student" ? "A GOOD PLACE TO START" : "YOUR NEXT STEPS";
+  $("upcoming-heading").textContent = role === "student" ? "Coming up" : "On the horizon";
   $("progress-intro").textContent = role === "teacher" ? "See the whole person, not just the numbers. Celebrate wins and spot where support helps." : "See your activity, celebrate what you have finished, and find your quiz results.";
+  $("progress-heading").innerHTML = role === "teacher" ? "Student <em>progress.</em>" : "My <em>progress.</em>";
   document.querySelectorAll(".teacher-only").forEach((node) => { node.hidden = state.role !== "teacher"; });
   document.querySelectorAll(".student-only").forEach((node) => { node.hidden = state.role !== "student"; });
   $("role-switch").hidden = true;
@@ -30,6 +45,11 @@ function setRole(role) {
   $("student-join-panel").hidden = !(state.profile?.role === "student" && !state.student);
   $("fun-score-label").textContent = state.role === "teacher" ? "Class activity results" : "Play streak";
   const studentLocked = state.role === "student" && !state.student;
+  $("assignments-code-gate").hidden = !studentLocked;
+  $("assignment-filters-row").hidden = studentLocked;
+  $("assignment-list").hidden = studentLocked;
+  $("updates-code-gate").hidden = !studentLocked;
+  $("announcement-list").hidden = studentLocked;
   $("quiz-code-gate").hidden = !studentLocked; $("quiz-list").hidden = studentLocked;
   document.querySelector(".quiz-history").hidden = studentLocked;
   $("games-code-gate").hidden = !studentLocked; $("fun-games-grid").hidden = studentLocked;
@@ -62,7 +82,7 @@ function renderDashboard() {
   const assessmentScores = state.students.map((s) => Number(s.assessment)).filter(Number.isFinite);
   const allScores = scores.length ? scores : assessmentScores;
   $("average-progress").textContent = allScores.length ? `${Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)}%` : "—";
-  const openAssignments = state.assignments.filter((a) => !state.submissions.some((sub) => String(sub.assignment_id) === String(a.id) && sub.student_name === myName()));
+  const openAssignments = state.assignments.filter((assignment) => !hasSubmitted(assignment));
   $("pending-count").textContent = openAssignments.length;
   const bars = $("engagement-bars"); bars.replaceChildren();
   Object.entries(counts).forEach(([label, value]) => {
@@ -71,7 +91,7 @@ function renderDashboard() {
     const track = el("div", undefined, "progress-track"), fill = el("div", undefined, "progress-fill"); fill.style.width = `${state.students.length ? value / state.students.length * 100 : 0}%`; track.append(fill); row.append(desc, track); bars.append(row);
   });
   const upcoming = $("upcoming-list"); upcoming.replaceChildren();
-  const upcomingItems = [...state.assignments].sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999")).slice(0, 3);
+  const upcomingItems = [...state.assignments].filter((assignment) => state.role !== "student" || !hasSubmitted(assignment)).sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999")).slice(0, 3);
   if (!upcomingItems.length) upcoming.append(el("div", "A nice, open space for your next activity.", "empty-state"));
   upcomingItems.forEach((assignment) => {
     const item = el("div", undefined, "upcoming-item"), date = el("div", undefined, "date-block"), parsed = safeDate(assignment.due_date);
@@ -172,7 +192,7 @@ function renderAll() { renderDashboard(); renderResources(); renderAssignments()
 
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function renderAttendance(){const dateInput=$("attendance-date");if(!dateInput)return;const date=dateInput.value||todayISO();if(!dateInput.value)dateInput.value=date;const table=$("attendance-table");table.replaceChildren();const records=state.role==="teacher"?state.students:state.students.filter((s)=>String(s.id)===String(currentStudent()?.id)),selected=state.attendance.filter((a)=>a.class_date===date);if(!records.length){const row=el("tr"),cell=el("td","Learner profiles will appear here once the teacher adds and links the class.");cell.colSpan=3;row.append(cell);table.append(row);}records.forEach((student)=>{const entry=selected.find((a)=>String(a.student_id)===String(student.id)),row=el("tr");row.append(el("td",student.name));const statusCell=el("td");if(state.role==="teacher"){const select=document.createElement("select");select.dataset.attendanceStudent=student.id;["present","absent","late","excused"].forEach((status)=>{const option=el("option",status[0].toUpperCase()+status.slice(1));option.value=status;option.selected=entry?.status===status;select.append(option);});statusCell.append(select);}else statusCell.append(el("span",entry?entry.status[0].toUpperCase()+entry.status.slice(1):"Not marked","status-pill"));const noteCell=el("td");if(state.role==="teacher"){const input=document.createElement("input");input.dataset.attendanceNote=student.id;input.maxLength=500;input.placeholder="Optional note";input.value=entry?.note||"";noteCell.append(input);}else noteCell.textContent=entry?.note||"—";row.append(statusCell,noteCell);table.append(row);});$("attendance-summary").textContent=state.role==="teacher"?`${selected.filter((x)=>x.status==="present").length} present · ${selected.length} marked · ${records.length} learners`:"Your class check-in history is visible here.";const history=$("attendance-history-table");history.replaceChildren();const rows=state.attendance.filter((a)=>state.role==="teacher"||String(a.student_id)===String(currentStudent()?.id)).slice(0,50);if(!rows.length){const row=el("tr"),cell=el("td","Attendance check-ins will show here.");cell.colSpan=4;row.append(cell);history.append(row);}rows.forEach((entry)=>{const student=state.students.find((s)=>String(s.id)===String(entry.student_id)),row=el("tr");row.append(el("td",entry.class_date),el("td",student?.name||"Learner"),el("td",entry.status),el("td",entry.note||"—"));history.append(row);});}
-function renderAnnouncements(){const list=$("announcement-list"),dash=$("dashboard-announcements");if(!list||!dash)return;list.replaceChildren();dash.replaceChildren();const now=Date.now(),visible=state.announcements.filter((a)=>state.role==="teacher"||new Date(a.published_at||0).getTime()<=now).sort((a,b)=>new Date(b.published_at||0)-new Date(a.published_at||0));if(!visible.length){list.append(el("div","Your class board is ready for its first note.","empty-state"));dash.append(el("p","No class notes yet. This space is ready for a helpful update.","empty-state"));return;}visible.forEach((item)=>{const card=el("article",undefined,"surface announcement-card"),date=new Date(item.published_at||Date.now());card.append(el("div",item.published_at&&date>now?"SCHEDULED":"CLASS NOTE","eyebrow"),el("h2",item.title),el("p",item.body),el("small",`${date.toLocaleString()}${item.reminder_at?` · Reminder ${new Date(item.reminder_at).toLocaleString()}`:""}`));if(state.role==="teacher"){const remove=el("button","Remove","mini-button");remove.addEventListener("click",async()=>{try{await ClassroomAPI.deleteAnnouncement(item.id);await refreshData();toast("Announcement removed.");}catch(error){showError(error,"Could not remove announcement");}});card.append(remove);}list.append(card);});const first=visible.find((a)=>new Date(a.published_at||0)<=now)||visible[0];dash.append(el("b",first.title),el("p",first.body),el("small",first.reminder_at&&new Date(first.reminder_at)>now?`Reminder scheduled for ${new Date(first.reminder_at).toLocaleString()}`:new Date(first.published_at||Date.now()).toLocaleDateString()));}
+function renderAnnouncements(){const list=$("announcement-list"),dash=$("dashboard-announcements");if(!list||!dash)return;list.replaceChildren();dash.replaceChildren();if(state.role==="student"&&!state.student){dash.append(el("p","Your teacher’s class updates will appear after you enter their studio code.","empty-state"));return;}const now=Date.now(),visible=state.announcements.filter((a)=>state.role==="teacher"||new Date(a.published_at||0).getTime()<=now).sort((a,b)=>new Date(b.published_at||0)-new Date(a.published_at||0));if(!visible.length){list.append(el("div","Your class board is ready for its first note.","empty-state"));dash.append(el("p","No class notes yet. This space is ready for a helpful update.","empty-state"));return;}visible.forEach((item)=>{const card=el("article",undefined,"surface announcement-card"),date=new Date(item.published_at||Date.now());card.append(el("div",item.published_at&&date>now?"SCHEDULED":"CLASS NOTE","eyebrow"),el("h2",item.title),el("p",item.body),el("small",`${date.toLocaleString()}${item.reminder_at?` · Reminder ${new Date(item.reminder_at).toLocaleString()}`:""}`));if(state.role==="teacher"){const remove=el("button","Remove","mini-button");remove.addEventListener("click",async()=>{try{await ClassroomAPI.deleteAnnouncement(item.id);await refreshData();toast("Announcement removed.");}catch(error){showError(error,"Could not remove announcement");}});card.append(remove);}list.append(card);});const first=visible.find((a)=>new Date(a.published_at||0)<=now)||visible[0];dash.append(el("b",first.title),el("p",first.body),el("small",first.reminder_at&&new Date(first.reminder_at)>now?`Reminder scheduled for ${new Date(first.reminder_at).toLocaleString()}`:new Date(first.published_at||Date.now()).toLocaleDateString()));}
 async function saveAttendance(){const date=$("attendance-date").value,rows=[...document.querySelectorAll("[data-attendance-student]")].map((select)=>({student_id:Number(select.dataset.attendanceStudent),class_date:date,status:select.value,note:document.querySelector(`[data-attendance-note="${select.dataset.attendanceStudent}"]`)?.value.trim()||null}));try{await ClassroomAPI.saveAttendance(rows);state.attendance=await ClassroomAPI.getAttendanceHistory();renderAttendance();toast("Attendance saved for the class.");}catch(error){showError(error,"Could not save attendance");}}
 async function addAnnouncement(event){event.preventDefault();const publish=$("announcement-publish-at").value,reminder=$("announcement-reminder-at").value,value={title:$("announcement-headline").value.trim(),body:$("announcement-body").value.trim(),published_at:publish?new Date(publish).toISOString():new Date().toISOString(),reminder_at:reminder?new Date(reminder).toISOString():null};try{await ClassroomAPI.addAnnouncement(value);event.target.reset();closeModal($("announcement-modal"));await refreshData();toast("Class board updated.");}catch(error){showError(error,"Could not post announcement");}}
 function savedAccounts(){try{return JSON.parse(localStorage.getItem("funno-known-accounts")||"[]");}catch{return[];}}
@@ -404,6 +424,7 @@ async function signOut() {
   catch (error) { showError(error, "Could not sign out"); }
 }
 function bindUI() {
+  $("home-crumb").addEventListener("click", () => setPage("dashboard"));
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
   document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.go)));
   document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.assignmentKind) $("assignment-kind").value = button.dataset.assignmentKind; openModal(button.dataset.open); }));
@@ -439,3 +460,4 @@ function bindUI() {
 const now = new Date(); $("today-date").textContent = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 bindUI(); addQuestionCard(0); setEntryMode("signin"); setRole("student"); refreshData();
 setInterval(() => { if (state.profile && $("help-chat").classList.contains("active")) loadChat(); }, 15000);
+
