@@ -159,11 +159,74 @@ function renderStudents(search = "") {
 function renderRecommendations() {
   const list = $("recommendation-list"); list.replaceChildren();
   const records = state.role === "teacher" ? state.students : state.students.filter((s) => String(s.id) === String(currentStudent()?.id));
+  renderMLPatterns(records);
   if (!records.length) { list.append(el("div", "When learner progress is available, thoughtful next steps will appear here.", "empty-state")); return; }
   records.forEach((student) => {
     const { state: level, score } = engagement(student), card = el("article", undefined, "recommendation-card");
     const advice = level === "High" ? "Celebrate this steady progress and offer an interesting new challenge." : level === "Moderate" ? "Share a quick word of encouragement and notice which activity feels engaging." : "A friendly one-to-one check-in can help identify the support that feels useful.";
     card.append(el("span", `${level} · ${score}% snapshot`, `badge ${level.toLowerCase()}`), el("h3", student.name), el("p", `Attendance ${student.attendance}% · assessment ${student.assessment}% · participation ${student.participation}%`), el("p", advice)); list.append(card);
+  });
+}
+function renderMLPatterns(records) {
+  const panel = $("ml-pattern-panel"), status = $("ml-pattern-status"), list = $("ml-cluster-list");
+  if (!panel || !status || !list) return;
+  panel.hidden = state.role !== "teacher";
+  list.replaceChildren();
+  if (panel.hidden) return;
+  if (records.length < 3) {
+    status.textContent = "Add at least three learners to this studio to discover classroom patterns. Until then, no model-based grouping is shown.";
+    return;
+  }
+
+  const quizScores = new Map(), completions = new Map();
+  state.results.forEach((result) => {
+    const id = String(result.student_id), score = Number(result.score);
+    if (!Number.isFinite(score)) return;
+    const values = quizScores.get(id) || []; values.push(score); quizScores.set(id, values);
+  });
+  state.submissions.forEach((submission) => {
+    const id = String(submission.student_id), ids = completions.get(id) || new Set();
+    ids.add(String(submission.assignment_id)); completions.set(id, ids);
+  });
+  const rows = records.map((student) => {
+    const scores = quizScores.get(String(student.id)) || [];
+    const submitted = completions.get(String(student.id)) || new Set();
+    return {
+      name: student.name,
+      attendance: student.attendance,
+      assessment: student.assessment,
+      participation: student.participation,
+      quizAverage: scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : null,
+      completionRate: state.assignments.length ? submitted.size / state.assignments.length * 100 : null,
+    };
+  });
+  const model = window.FunnoML?.clusterLearners(rows);
+  if (!model || model.status === "more-data") {
+    status.textContent = "More classroom data is needed before the pattern model can group learners.";
+    return;
+  }
+  if (model.status === "similar") {
+    status.textContent = "The signals look very similar across this studio, so the model did not create separate groups.";
+    return;
+  }
+
+  status.textContent = `K-means grouped ${records.length} learners from this studio using available attendance, assessment, participation, quiz and activity signals. Missing quiz or assignment history is treated as unknown.`;
+  const signalNames = [
+    ["attendance", "Attendance"], ["assessment", "Assessment"], ["participation", "Participation"],
+    ["quizAverage", "Quiz average"], ["completionRate", "Activity completion"],
+  ];
+  model.clusters.forEach((cluster) => {
+    const card = el("article", undefined, "ml-cluster-card"), top = el("div", undefined, "ml-cluster-top");
+    top.append(el("span", cluster.title, "ml-cluster-title"), el("span", `${cluster.size} ${cluster.size === 1 ? "learner" : "learners"}`, "ml-cluster-count"));
+    card.append(top, el("p", cluster.advice, "ml-cluster-advice"));
+    const signals = el("div", undefined, "ml-cluster-signals");
+    signalNames.forEach(([key, label]) => {
+      const value = cluster.signals[key], item = el("span", undefined, "ml-signal");
+      item.append(el("small", label), el("b", key === "quizAverage" && !quizScores.size || key === "completionRate" && !state.assignments.length ? "—" : `${value}%`));
+      signals.append(item);
+    });
+    const names = el("p", cluster.members.join(" · "), "ml-cluster-members");
+    card.append(signals, names); list.append(card);
   });
 }
 function renderAdmin() {
