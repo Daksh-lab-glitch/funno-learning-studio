@@ -19,6 +19,11 @@ The opening screen is a simple sign-in or account creation form. Teachers receiv
 - Funno Playroom with a word scramble, number patterns and curiosity breaks. Student results are saved.
 - Private messages between a learner and their teacher.
 - Teacher progress view for connected students, assessments, check-ins, submissions and Funno activities.
+- Teacher-only Learning patterns in Teaching insights, using an on-device unsupervised K-means model to group similar engagement signals.
+
+## Learning pattern model
+
+The Teaching insights page runs a small K-means model in the teacher's browser over the currently selected studio's RLS-scoped learners. It uses attendance, assessment, participation, quiz averages and activity completion. The model needs at least three learners; unavailable quiz or assignment signals are treated as unknown. It does not send or store feature data or predictions. Groups are descriptive prompts for supportive teacher check-ins, not diagnoses, grades or automated decisions. Students do not see the teacher-only grouping.
 
 ## Supabase
 
