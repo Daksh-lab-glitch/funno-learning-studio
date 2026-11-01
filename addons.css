@@ -24,3 +24,25 @@
 @media(max-width:720px){.student-home-card{min-height:205px;padding:20px}.student-home-art{position:absolute;right:-19px;top:6px;width:82px;height:82px;margin:0;opacity:.45}.student-home-copy{max-width:100%}.student-home-copy p{max-width:90%}.student-home-actions{max-width:290px}.student-home-actions .button{font-size:.7rem}}
 .entry-teacher-code-wrap{padding:10px 12px;border:1px solid #d9e9df;border-radius:12px;background:linear-gradient(130deg,#f3faf5,#fff8ee)}.entry-teacher-code-wrap[hidden]{display:none!important}.entry-teacher-code-wrap>label{color:#285a4d}.entry-teacher-code-wrap input{text-transform:uppercase;letter-spacing:.08em;font-weight:700}.entry-teacher-code-wrap>small{display:block;margin-top:7px;color:#70837b;font-size:11px;line-height:1.5}
 
+/* Teacher-only, browser-local K-means classroom patterns. */
+.ml-pattern-panel{padding:clamp(20px,3vw,30px);margin:18px 0 22px;border:1px solid #dbe9df;background:linear-gradient(135deg,#fff 0%,#f7fbf5 70%,#fff7ed 100%)}
+.ml-pattern-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.ml-pattern-heading h2{margin:11px 0 7px;color:#214940;font:800 clamp(20px,2vw,26px) Manrope,sans-serif;letter-spacing:-.035em}
+.ml-pattern-heading p{max-width:760px;margin:0;color:#6c8179;font-size:13px;line-height:1.65}
+.ml-model-chip{display:inline-flex;padding:6px 9px;border-radius:99px;background:#e6f2e9;color:#2c715d;font-size:9px;font-weight:800;letter-spacing:.12em}
+.ml-spark{display:grid;place-items:center;flex:none;width:43px;height:43px;border-radius:15px;background:#fff0dc;color:#d18b4e;font-size:24px}
+.ml-pattern-status{margin:17px 0 0;color:#687e75;font-size:12px;line-height:1.6}
+.ml-cluster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px;margin-top:16px}
+.ml-cluster-card{min-width:0;padding:16px;border:1px solid #e2ebe2;border-radius:15px;background:#ffffffd9}
+.ml-cluster-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ml-cluster-title{color:#254d43;font:800 14px Manrope,sans-serif}
+.ml-cluster-count{flex:none;padding:5px 8px;border-radius:99px;background:#f0f4ed;color:#6b7d73;font-size:10px;font-weight:700}
+.ml-cluster-advice{min-height:40px;margin:11px 0;color:#71817a;font-size:12px;line-height:1.55}
+.ml-cluster-signals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.ml-signal{display:grid;gap:4px;padding:9px;border-radius:10px;background:#f6f8f3}
+.ml-signal small{color:#7c8a81;font-size:9px}
+.ml-signal b{color:#315b4f;font-size:12px}
+.ml-cluster-members{margin:11px 0 0;padding-top:9px;border-top:1px solid #edf0e9;color:#647970;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
+.ml-pattern-panel[hidden]{display:none!important}
+@media(max-width:620px){.ml-pattern-heading{gap:10px}.ml-spark{width:36px;height:36px;font-size:19px}.ml-cluster-grid{grid-template-columns:1fr}}
+
