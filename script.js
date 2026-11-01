@@ -372,9 +372,12 @@ function setEntryMode(mode) {
 }
 function updateEntryRole() {
   const role = $("entry-role").value, signingIn = state.entryMode === "signin";
+  const codeWrap = $("entry-teacher-code-wrap"), codeInput = $("entry-teacher-code");
+  codeWrap.hidden = role !== "student";
+  codeInput.required = role === "student";
   $("signup-next-step").textContent = role === "teacher"
     ? signingIn ? "Teacher sign-in opens your activity studio and student results." : "Create a teacher account to publish assignments, games and quizzes."
-    : signingIn ? "Student sign-in opens your learning activities and results." : "After creating an account, enter your teacher’s verification code to unlock activities.";
+    : signingIn ? "Enter your teacher’s code to open only that teacher’s learning space." : "Use the code your teacher shared. It connects this student account to that teacher only.";
 }
 function readPendingOnboarding() { try { return JSON.parse(localStorage.getItem("funno-pending-onboarding") || "null"); } catch { return null; } }
 async function completePendingOnboarding() {
@@ -386,17 +389,20 @@ async function completePendingOnboarding() {
 }
 async function authenticateEntry(event) {
   event.preventDefault(); const message = $("entry-message"), email = $("entry-email").value.trim(), password = $("entry-password").value;
+  let selectedRole = $("entry-role").value, signedInThisAttempt = false, teacherCodeAccepted = false;
+  const teacherCode = $("entry-teacher-code").value.trim().toUpperCase();
   message.textContent = "Connecting securely…"; $("entry-auth-form").setAttribute("aria-busy", "true");
   try {
-    const selectedRole = $("entry-role").value;
     if (state.entryMode === "signup") {
       const name = $("entry-name").value.trim(), pending = { role: selectedRole, email: email.toLowerCase() };
       localStorage.setItem("funno-pending-onboarding", JSON.stringify(pending));
       const result = await ClassroomAPI.signUp(email, password, name);
-      if (!result.access_token) { message.textContent = `Account created as ${selectedRole}. Confirm your email, then choose ${selectedRole} here to sign in.`; return; }
+      if (!result.access_token) { message.textContent = selectedRole === "student" ? "Account created. Confirm your email, then sign in as a student and enter your teacher’s code to connect to that studio." : "Account created as teacher. Confirm your email, then choose teacher here to sign in."; return; }
+      signedInThisAttempt = true;
       await completePendingOnboarding();
     } else {
       await ClassroomAPI.signIn(email, password);
+      signedInThisAttempt = true;
       await completePendingOnboarding();
     }
     const profile = await ClassroomAPI.getMyProfile();
@@ -405,11 +411,23 @@ async function authenticateEntry(event) {
       await ClassroomAPI.signOut();
       throw new Error(`This email belongs to a ${profile.role} account. Choose ${profile.role} above and sign in again.`);
     }
+    if (profile.role === "student") {
+      await ClassroomAPI.joinClass(teacherCode, profile.display_name || $("entry-name").value.trim());
+      teacherCodeAccepted = true;
+      $("entry-teacher-code").value = "";
+    }
     $("entry-password").value = ""; await refreshData();
     if (!state.profile) throw new Error("We couldn’t load your account profile. Check the Supabase migration and try again.");
     toast(state.profile.role === "teacher" ? "Your Funno Studio is ready." : state.student ? "Welcome to your Funno Studio." : "Enter the verification code from your teacher.");
   } catch (error) {
     let session = null; try { session = JSON.parse(localStorage.getItem("funno-auth-session") || "null"); } catch { session = null; }
+    if (signedInThisAttempt && selectedRole === "student" && !teacherCodeAccepted && session?.access_token) {
+      await ClassroomAPI.signOut();
+      state.profile = null; state.student = null; state.classrooms = []; state.activeClassroomId = null;
+      $("entry-gate").hidden = false;
+      message.textContent = error.message;
+      return;
+    }
     if (session?.access_token) {
       await refreshData();
       if (state.profile?.role === "student" && !state.student) $("student-join-message").textContent = error.message;
