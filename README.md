@@ -6,7 +6,7 @@ A responsive teacher–student learning space. Funno gives each teacher a privat
 
 Open this folder with VS Code Live Server, or run `python -m http.server 5500` here and visit `http://127.0.0.1:5500`.
 
-The opening screen is a simple sign-in or account creation form. Teachers receive a private Funno Studio and code automatically. Students create an account or sign in, then enter a teacher's verification code to join that studio. Supabase stores the data and row-level security scopes activities and results to the teacher–student relationship.
+The opening screen is a simple sign-in or account creation form. Teachers receive a private Funno Studio and choose a unique code. Students enter the teacher's code during signup or every sign-in; the code links their account to that teacher's studio. Supabase row-level security limits classroom records, activities, updates, quizzes, games and results to that teacher–student relationship.
 
 ## Features
 
@@ -31,8 +31,9 @@ Sign-in uses email and password. Choose Student or Teacher on the entry screen; 
 ## Teacher and student access
 
 1. Create a teacher account in Funno with name, email, password and account type.
-2. A teacher's **Student access code** page shows the private verification code to share; teachers can also set a unique 6–12 character code using letters and numbers.
-3. Students create an account or sign in, open **Student progress**, enter their name and the teacher's code, and unlock that teacher's assignments, games and quizzes.
+2. A teacher's **Student access code** page shows the private verification code to share; each teacher can set a unique 6–12 character code using letters and numbers.
+3. Students enter their teacher's code when they create an account or sign in. The code joins them to that teacher's studio; a different teacher's code is rejected for an already-linked student account.
 4. Teachers publish assignments, projects, discussions, fun challenges, quizzes, lessons and private file uploads from **Teacher Studio**. They can review student submissions and quiz results there.
 
-Teacher permissions are limited to their private studio. Verification codes are only shown to teachers; students must sign in before joining with one. Email confirmation follows the Supabase project's Auth settings. Files stay in the private `classroom-files` bucket (10 MB limit). Reminders currently appear in the app; email and push notifications are not configured.
+Teacher permissions are limited to their own private studio. Students cannot read another teacher's classes or activities through the Supabase Data API; row-level security enforces the same boundary as the frontend gates. Verification codes are only shown to their teacher; students must sign in before joining with one. Email confirmation follows the Supabase project's Auth settings. Files stay in the private `classroom-files` bucket (10 MB limit). Reminders currently appear in the app; email and push notifications are not configured.
+
