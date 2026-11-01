@@ -438,7 +438,7 @@ async function authenticateEntry(event) {
   finally { $("entry-auth-form").removeAttribute("aria-busy"); }
 }
 async function signOut() {
-  try { await ClassroomAPI.signOut(); state.profile = null; state.student = null; state.classrooms = []; state.profiles = []; state.role = "student"; $("entry-gate").hidden = false; setEntryMode("signin"); await refreshData(); $("entry-email").focus(); toast("You’re signed out of Funno."); }
+  try { await ClassroomAPI.signOut(); state.profile = null; state.student = null; state.classrooms = []; state.profiles = []; state.role = "student"; $("entry-teacher-code").value = ""; $("entry-gate").hidden = false; setEntryMode("signin"); await refreshData(); $("entry-email").focus(); toast("You’re signed out of Funno."); }
   catch (error) { showError(error, "Could not sign out"); }
 }
 function bindUI() {
