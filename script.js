@@ -526,7 +526,9 @@ async function generateQuizDraft() {
   if (prompt.length < 5) { $("quiz-ai-status").textContent = "Add a topic or a little more detail first."; $("quiz-ai-prompt").focus(); return; }
   const button = $("generate-quiz-ai"); setAiButtonBusy(button, true); $("quiz-ai-status").textContent = "Making an editable quiz draft…";
   try {
-    const draft = await ClassroomAPI.generateLearningActivity({ kind: "quiz", prompt, grade: $("quiz-ai-grade").value, count: Number($("quiz-ai-count").value), difficulty: "age-appropriate" });
+    const subject = $("quiz-ai-subject").value;
+    if (!subject) { $("quiz-ai-status").textContent = "Choose a subject before generating the quiz."; $("quiz-ai-subject").focus(); return; }
+    const draft = await ClassroomAPI.generateLearningActivity({ kind: "quiz", prompt, subject, grade: $("quiz-ai-grade").value, count: Number($("quiz-ai-count").value), difficulty: "age-appropriate" });
     $("quiz-title").value = draft.title;
     $("question-builder").replaceChildren();
     draft.questions.forEach((question, index) => {
@@ -547,11 +549,13 @@ async function generateGameDraft() {
   if (prompt.length < 5) { $("activity-ai-status").textContent = "Describe the skill or game idea first."; $("assignment-ai-prompt").focus(); return; }
   const button = $("generate-activity-ai"); setAiButtonBusy(button, true); $("activity-ai-status").textContent = "Making an editable activity draft…";
   try {
-    const draft = await ClassroomAPI.generateLearningActivity({ kind: "game", prompt, grade: $("assignment-ai-grade").value, count: 0, difficulty: "age-appropriate" });
+    const subject = $("assignment-ai-subject").value;
+    if (!subject) { $("activity-ai-status").textContent = "Choose a subject before generating the draft."; $("assignment-ai-subject").focus(); return; }
+    const isGame = $("assignment-kind").value === "fun_challenge";
+    const draft = await ClassroomAPI.generateLearningActivity({ kind: isGame ? "game" : "assignment", prompt, subject, grade: $("assignment-ai-grade").value, count: 0, difficulty: "age-appropriate" });
     $("assignment-title").value = draft.title;
     $("assignment-description").value = `${draft.description}\n\n${draft.activity_instructions}`.trim().slice(0, 2000);
-    if ($("assignment-kind").value === "assignment") $("assignment-kind").value = "fun_challenge";
-    $("activity-ai-status").textContent = "Draft ready. Review or edit the title and instructions, then add it to your activities.";
+    $("activity-ai-status").textContent = `Draft ready for ${subject}. Review or edit the title and instructions, then save it to your class.`;
     $("assignment-title").focus();
   } catch (error) { $("activity-ai-status").textContent = error.message; }
   finally { setAiButtonBusy(button, false); }

@@ -14,15 +14,15 @@
 .ai-draft-tools>label{display:grid;gap:3px;font-weight:700;color:#31584e}
 .ai-draft-tools>label small{font-size:11px;font-weight:400;color:#798c84}
 .ai-draft-tools textarea{width:100%;resize:vertical;min-height:72px;border:1px solid #dce7e0;border-radius:9px;padding:10px 12px;font:inherit;color:#284b43;background:#fff}
-.ai-draft-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
-.ai-draft-row label{display:grid;gap:5px;font-size:12px;font-weight:700;color:#59736a}
-.ai-draft-row select{min-width:100px;border:1px solid #dce7e0;border-radius:9px;padding:9px;background:#fff;color:#284b43}
+.ai-draft-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.ai-draft-row label{display:grid;flex:1 1 118px;gap:5px;font-size:12px;font-weight:700;color:#59736a}
+.ai-draft-row select,.ai-draft-tools>label select{width:100%;min-width:100px;border:1px solid #dce7e0;border-radius:9px;padding:9px;background:#fff;color:#284b43}
 .button-ai{white-space:nowrap;background:#e5f5eb;color:#176856;border:1px solid #cce8d8}
 .button-ai:hover{background:#d7f0e1}
 .button-ai:disabled{opacity:.65;cursor:wait}
 .ai-status{min-height:0;margin:0;color:#54776a;font-size:12px;line-height:1.45}
 .ai-status:empty{display:none}
-@media(max-width:520px){.ai-draft-row{grid-template-columns:1fr 1fr}.ai-draft-row .button-ai{grid-column:1/-1;width:100%}}
+@media(max-width:520px){.ai-draft-row .button-ai{flex:1 0 100%;width:100%}}
 .teacher-code-form { display: grid; gap: 8px; margin-top: 14px; max-width: 560px; }
 .teacher-code-form label { color: #31584e; font-size: 12px; font-weight: 700; }
 .teacher-code-controls { display: flex; flex-wrap: wrap; gap: 9px; }
