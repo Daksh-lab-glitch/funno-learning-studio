@@ -159,8 +159,22 @@ window.CLASSROOM_SUPABASE_KEY = window.CLASSROOM_SUPABASE_KEY || "sb_publishable
       return quiz;
     },
     async getResults() { await modeReady; if (localMode) return list("results"); const ids = window.FunnoStudentIds || []; return ids.length ? rawRequest(`quiz_results?select=*&student_id=in.(${ids.map(encodeURIComponent).join(",")})&order=created_at.desc`) : []; },
-    async getMessages(studentId = null) { await modeReady; if (localMode) return []; const query = studentId ? `student_id=eq.${encodeURIComponent(studentId)}` : activeClassroomId ? `classroom_id=eq.${encodeURIComponent(activeClassroomId)}` : "id=eq.-1"; return rawRequest(`class_messages?select=*&${query}&order=created_at.asc&limit=300`); },
+    async getMessages(studentId = null) {
+      await modeReady;
+      if (localMode) return [];
+      const query = studentId ? `student_id=eq.${encodeURIComponent(studentId)}` : activeClassroomId ? `classroom_id=eq.${encodeURIComponent(activeClassroomId)}` : "id=eq.-1";
+      const messages = await rawRequest(`class_messages?select=*&${query}&order=created_at.asc&limit=300`);
+      if (!messages.length) return messages;
+      const ids = messages.map((message) => encodeURIComponent(message.id)).join(",");
+      const pins = await rawRequest(`class_message_pins?select=message_id,pinned_by,created_at&message_id=in.(${ids})`);
+      const pinnedIds = new Set(pins.map((pin) => String(pin.message_id)));
+      return messages.map((message) => ({ ...message, is_pinned: pinnedIds.has(String(message.id)) }));
+    },
     async sendMessage(studentId, body) { await modeReady; if (localMode) throw new Error("Sign in to message your teacher."); return rawRequest("class_messages", { method: "POST", body: JSON.stringify({ student_id: studentId, classroom_id: activeClassroomId, body }) }); },
+    async updateMessage(messageId, body) { await modeReady; if (localMode) throw new Error("Sign in to edit messages."); return rawRequest(`class_messages?id=eq.${encodeURIComponent(messageId)}`, { method: "PATCH", body: JSON.stringify({ body }) }); },
+    async deleteMessage(messageId) { await modeReady; if (localMode) throw new Error("Sign in to delete messages."); return rawRequest(`class_messages?id=eq.${encodeURIComponent(messageId)}`, { method: "DELETE" }); },
+    async pinMessage(messageId, pinnedBy) { await modeReady; if (localMode) throw new Error("Sign in to pin messages."); return rawRequest("class_message_pins", { method: "POST", body: JSON.stringify({ message_id: messageId, pinned_by: pinnedBy }) }); },
+    async unpinMessage(messageId) { await modeReady; if (localMode) throw new Error("Sign in to unpin messages."); return rawRequest(`class_message_pins?message_id=eq.${encodeURIComponent(messageId)}`, { method: "DELETE" }); },
     async getFunResults() { await modeReady; if (localMode) return demo.funResults; return activeClassroomId ? rawRequest(`fun_activity_results?select=*&classroom_id=eq.${encodeURIComponent(activeClassroomId)}&order=created_at.desc&limit=100`) : []; },
     async saveFunResult(value) { await modeReady; if (localMode) { demo.funResults ||= []; demo.funResults.unshift({ ...value, id: nextId("funResults"), created_at: new Date().toISOString() }); saveLocal(); return demo.funResults[0]; } return rawRequest("fun_activity_results", { method: "POST", body: JSON.stringify({ ...value, classroom_id: activeClassroomId }) }); },
     async submitQuiz(value) {

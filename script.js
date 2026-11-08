@@ -304,6 +304,66 @@ function renderTeacherStudio() {
   items.forEach((item) => { const row = el("div", undefined, "studio-recent-item"); row.append(el("span", item.kind.replaceAll("_", " "), "studio-kind"), el("b", item.title), el("small", item.date ? new Date(item.date).toLocaleDateString() : "Just created")); list.append(row); });
 }
 function chatTargetId() { return state.role === "teacher" ? Number($("chat-student-select").value) || null : currentStudent()?.id || null; }
+function closeChatContextMenu() { document.querySelector(".chat-context-menu")?.remove(); }
+function openChatContextMenu(message, bubble, x, y, student) {
+  closeChatContextMenu();
+  const menu = el("div", undefined, "chat-context-menu"); menu.setAttribute("role", "menu");
+  const ownMessage = message.sender_id === state.profile?.id;
+  const addAction = (label, action) => {
+    const button = el("button", label, "chat-context-action"); button.type = "button"; button.setAttribute("role", "menuitem");
+    button.addEventListener("click", (event) => { event.stopPropagation(); closeChatContextMenu(); handleChatMessageAction(action, message, bubble, student); });
+    menu.append(button);
+  };
+  if (ownMessage) { addAction("✎  Edit message", "edit"); addAction("⌫  Delete message", "delete"); }
+  addAction("ⓘ  Message info", "info");
+  addAction(message.is_pinned ? "📌  Unpin message" : "📌  Pin message", "pin");
+  document.body.append(menu);
+  const left = Math.max(8, Math.min(x, window.innerWidth - menu.offsetWidth - 8));
+  const top = Math.max(8, Math.min(y, window.innerHeight - menu.offsetHeight - 8));
+  menu.style.left = `${left}px`; menu.style.top = `${top}px`;
+  menu.querySelector("button")?.focus();
+}
+function showChatMessageDetails(message, bubble, student) {
+  const current = bubble.querySelector(".chat-message-details");
+  if (current) { current.remove(); return; }
+  const own = message.sender_id === state.profile?.id;
+  const sender = own ? "You" : state.role === "teacher" ? student?.name || "Student" : "Teacher";
+  const recipient = own ? (state.role === "teacher" ? student?.name || "Student" : "Teacher") : (state.role === "teacher" ? "Teacher" : "You");
+  const details = el("div", undefined, "chat-message-details");
+  details.append(el("b", "Message details"), el("span", `From: ${sender}`), el("span", `To: ${recipient}`), el("span", `Sent: ${new Date(message.created_at).toLocaleString()}`));
+  if (message.edited_at) details.append(el("span", `Edited: ${new Date(message.edited_at).toLocaleString()}`));
+  if (message.is_pinned) details.append(el("span", "Pinned in this conversation"));
+  bubble.append(details);
+}
+function editChatMessage(message, bubble) {
+  bubble.replaceChildren();
+  const editor = document.createElement("textarea"); editor.className = "chat-edit-input"; editor.maxLength = 3000; editor.value = message.body; editor.setAttribute("aria-label", "Edit message");
+  const actions = el("div", undefined, "chat-edit-actions"), save = el("button", "Save", "mini-button"), cancel = el("button", "Cancel", "mini-button");
+  save.type = cancel.type = "button";
+  save.addEventListener("click", async () => {
+    const body = editor.value.trim(); if (!body) { editor.focus(); return; }
+    save.disabled = true;
+    try { await ClassroomAPI.updateMessage(message.id, body); await loadChat(); toast("Message updated."); }
+    catch (error) { save.disabled = false; showError(error, "Could not edit message"); }
+  });
+  cancel.addEventListener("click", loadChat);
+  actions.append(save, cancel); bubble.append(editor, actions); editor.focus();
+}
+async function handleChatMessageAction(action, message, bubble, student) {
+  if (action === "info") { showChatMessageDetails(message, bubble, student); return; }
+  if (action === "edit") { editChatMessage(message, bubble); return; }
+  if (action === "delete") {
+    if (!window.confirm("Delete this message? It will be removed for everyone in this conversation.")) return;
+    try { await ClassroomAPI.deleteMessage(message.id); await loadChat(); toast("Message deleted."); }
+    catch (error) { showError(error, "Could not delete message"); }
+    return;
+  }
+  try {
+    if (message.is_pinned) await ClassroomAPI.unpinMessage(message.id);
+    else await ClassroomAPI.pinMessage(message.id, state.profile.id);
+    await loadChat(); toast(message.is_pinned ? "Message unpinned." : "Message pinned.");
+  } catch (error) { showError(error, "Could not update pin"); }
+}
 async function loadChat() {
   const thread = $("chat-thread"); if (!thread || !state.profile) return;
   const studentId = chatTargetId(); thread.replaceChildren();
@@ -311,7 +371,16 @@ async function loadChat() {
   try {
     state.messages = await ClassroomAPI.getMessages(studentId);
     if (!state.messages.length) thread.append(el("p", "No messages yet. Your teacher is ready to help whenever you need it.", "empty-state"));
-    state.messages.forEach((message) => { const bubble = el("article", undefined, `chat-message${message.sender_id === state.profile.id ? " mine" : ""}`), target = state.students.find((student) => String(student.id) === String(studentId)); bubble.append(document.createTextNode(message.body), el("small", `${message.sender_id === state.profile.id ? "You" : state.role === "teacher" ? target?.name || "Learner" : "Teacher"} · ${new Date(message.created_at).toLocaleString()}`)); thread.append(bubble); });
+    state.messages.forEach((message) => {
+      const bubble = el("article", undefined, `chat-message${message.sender_id === state.profile.id ? " mine" : ""}`), target = state.students.find((student) => String(student.id) === String(studentId));
+      bubble.dataset.messageId = message.id; bubble.append(el("div", message.body, "chat-message-body"));
+      if (message.is_pinned) bubble.append(el("span", "📌 Pinned", "chat-pinned-label"));
+      const footer = el("div", undefined, "chat-message-footer");
+      footer.append(el("small", `${message.sender_id === state.profile.id ? "You" : state.role === "teacher" ? target?.name || "Learner" : "Teacher"} · ${new Date(message.created_at).toLocaleString()}${message.edited_at ? " · edited" : ""}`));
+      const menuButton = el("button", "⋯", "chat-message-menu-trigger"); menuButton.type = "button"; menuButton.setAttribute("aria-label", "Message actions"); menuButton.setAttribute("aria-haspopup", "menu");
+      menuButton.addEventListener("click", (event) => { event.stopPropagation(); const rect = menuButton.getBoundingClientRect(); openChatContextMenu(message, bubble, rect.right, rect.bottom + 4, target); });
+      footer.append(menuButton); bubble.append(footer); thread.append(bubble);
+    });
     thread.scrollTop = thread.scrollHeight;
   } catch (error) { thread.append(el("p", `Could not load messages: ${error.message}`, "empty-state")); }
 }
@@ -519,7 +588,8 @@ function bindUI() {
   document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.assignmentKind) $("assignment-kind").value = button.dataset.assignmentKind; openModal(button.dataset.open); }));
   document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => closeModal(button.closest(".modal-backdrop"))));
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeModal(backdrop); }));
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); closeChatContextMenu(); } });
+  document.addEventListener("click", (event) => { if (!event.target.closest(".chat-context-menu, .chat-message-menu-trigger")) closeChatContextMenu(); });
   $("role-switch").addEventListener("click", () => { const next = state.role === "teacher" ? "student" : "teacher"; setRole(next); toast(next === "student" ? "Student view is ready. Choose a learner from the class list in teacher view." : "You’re back in teacher view."); });
   $("save-attendance").addEventListener("click", saveAttendance); $("attendance-date").addEventListener("change", renderAttendance);
   $("submission-form").addEventListener("submit", saveSubmission); $("announcement-form").addEventListener("submit", addAnnouncement);
@@ -533,6 +603,28 @@ function bindUI() {
   $("teacher-code-form").addEventListener("submit", saveTeacherCode);
   $("class-picker").addEventListener("change", async (event) => { state.activeClassroomId = Number(event.target.value) || null; localStorage.setItem(`funno-class-${state.profile.id}`, state.activeClassroomId); ClassroomAPI.setActiveClassroom(state.activeClassroomId); await refreshData(); });
   $("chat-form").addEventListener("submit", sendChatMessage); $("refresh-chat").addEventListener("click", loadChat); $("chat-student-select").addEventListener("change", loadChat);
+  const chatThread = $("chat-thread"); let longPressTimer = null, longPressTriggered = false;
+  const stopLongPress = () => { clearTimeout(longPressTimer); longPressTimer = null; };
+  chatThread.addEventListener("contextmenu", (event) => {
+    const bubble = event.target.closest(".chat-message"); if (!bubble) return;
+    event.preventDefault(); if (longPressTriggered) { longPressTriggered = false; return; }
+    const message = state.messages.find((item) => String(item.id) === bubble.dataset.messageId); if (!message) return;
+    const studentId = chatTargetId(), student = state.students.find((item) => String(item.id) === String(studentId));
+    openChatContextMenu(message, bubble, event.clientX, event.clientY, student);
+  });
+  chatThread.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") return;
+    const bubble = event.target.closest(".chat-message"); if (!bubble) return;
+    const x = event.clientX, y = event.clientY;
+    longPressTimer = setTimeout(() => {
+      const message = state.messages.find((item) => String(item.id) === bubble.dataset.messageId); if (!message) return;
+      longPressTriggered = true;
+      const studentId = chatTargetId(), student = state.students.find((item) => String(item.id) === String(studentId));
+      openChatContextMenu(message, bubble, x, y, student);
+    }, 550);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((type) => chatThread.addEventListener(type, stopLongPress));
+  chatThread.addEventListener("pointermove", (event) => { if (Math.abs(event.movementX) + Math.abs(event.movementY) > 12) stopLongPress(); });
   $("check-scramble").addEventListener("click", checkScramble);
   document.querySelectorAll(".pattern-answer").forEach((button) => button.addEventListener("click", async () => { const correct = button.dataset.answer === "15"; $("pattern-message").textContent = correct ? "That’s it! You spotted the +3 pattern ✨" : "Try adding the same number each time."; if (correct) await scoreFun("number-pattern", 100); }));
   $("curiosity-done").addEventListener("click", async () => { $("curiosity-message").textContent = "Wonderful noticing. Tell your teacher what you found!"; await scoreFun("curiosity-break", 100); });
