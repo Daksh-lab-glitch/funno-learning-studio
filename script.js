@@ -4,6 +4,8 @@ const initials = (name = "?") => name.trim().split(/\s+/).slice(0, 2).map((part)
 const safeDate = (value) => value ? new Date(`${value}T12:00:00`) : null;
 const dateText = (value) => { const date = safeDate(value); return date ? date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "No due date"; };
 function el(tag, text, className = "") { const node = document.createElement(tag); if (text !== undefined) node.textContent = String(text); if (className) node.className = className; return node; }
+function setHidden(target, hidden) { const node = typeof target === "string" ? $(target) : target; if (node) node.hidden = hidden; }
+function setText(id, text) { const node = $(id); if (node) node.textContent = text; return node; }
 function showMessage(text, isError = false) { const node = $("app-message"); node.textContent = text; node.className = isError ? "error" : "success"; setTimeout(() => { node.textContent = ""; node.className = ""; }, 3500); }
 function toast(message) { const node = $("toast"); node.textContent = message; node.classList.add("show"); clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => node.classList.remove("show"), 2600); }
 function showError(error, prefix = "Something went wrong") { showMessage(`${prefix}: ${error.message}`, true); }
@@ -21,15 +23,15 @@ function myName() { return state.role === "student" ? roleName(currentStudent())
 function setRole(role) {
   state.role = state.profile?.role || role; localStorage.setItem("bloom-role", state.role);
   const student = currentStudent(); if (student) { localStorage.setItem("bloom-student-id", student.id); localStorage.setItem("bloom-student-name", student.name); }
-  const roleLabel = $("role-label"); roleLabel.replaceChildren(document.createTextNode(role === "teacher" ? "Teacher view" : myName())); const roleHint = el("small", role === "teacher" ? "Switch to student view" : "Switch to teacher view"); roleLabel.append(roleHint);
-  $("user-avatar").textContent = role === "teacher" ? "T" : initials(myName());
-  $("role-switch").querySelector(".role-avatar").textContent = role === "teacher" ? "T" : initials(myName());
-  $("role-switch").hidden = Boolean(state.profile);
-  $("switch-account").hidden = !(state.profile?.role === "teacher" || state.profile?.role === "student");
-  $("welcome-subtitle").textContent = role === "teacher" ? "A little curiosity goes a long way. Here’s your class at a glance." : `Welcome back, ${myName().split(" ")[0]}. Your learning story is right here.`;
-  const welcomeHeading = $("welcome-heading"); welcomeHeading.replaceChildren();
-  if (role === "teacher") { welcomeHeading.append(document.createTextNode("Make today "), el("em", "count.")); }
-  else { welcomeHeading.append(document.createTextNode(`Hello, ${myName().split(" ")[0]} `), el("em", "✦")); }
+  const roleLabel = $("role-label"); if (roleLabel) { roleLabel.replaceChildren(document.createTextNode(role === "teacher" ? "Teacher view" : myName())); roleLabel.append(el("small", role === "teacher" ? "Switch to student view" : "Switch to teacher view")); }
+  setText("user-avatar", role === "teacher" ? "T" : initials(myName()));
+  const roleAvatar = $("role-switch")?.querySelector(".role-avatar"); if (roleAvatar) roleAvatar.textContent = role === "teacher" ? "T" : initials(myName());
+  setHidden("role-switch", Boolean(state.profile));
+  setHidden("switch-account", !(state.profile?.role === "teacher" || state.profile?.role === "student"));
+  setText("welcome-subtitle", role === "teacher" ? "A little curiosity goes a long way. Here’s your class at a glance." : `Welcome back, ${myName().split(" ")[0]}. Your learning story is right here.`);
+  const welcomeHeading = $("welcome-heading"); welcomeHeading?.replaceChildren();
+  if (role === "teacher") { welcomeHeading?.append(document.createTextNode("Make today "), el("em", "count.")); }
+  else { welcomeHeading?.append(document.createTextNode(`Hello, ${myName().split(" ")[0]} `), el("em", "✦")); }
   const studentHomeTitle = $("student-home-title"), studentHomeCopy = $("student-home-copy"), connectButton = $("student-home-connect");
   if (studentHomeTitle && studentHomeCopy && connectButton) {
     studentHomeTitle.textContent = state.student ? `Welcome to your studio, ${myName().split(" ")[0]}!` : "Let’s find your classroom.";
@@ -39,28 +41,28 @@ function setRole(role) {
   const studentsNav = document.querySelector('.nav-btn[data-page="students"]');
   const studentsNavLabel = [...(studentsNav?.childNodes || [])].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
   if (studentsNavLabel) studentsNavLabel.textContent = role === "student" ? " My progress" : " Student progress";
-  $("upcoming-eyebrow").textContent = role === "student" ? "A GOOD PLACE TO START" : "YOUR NEXT STEPS";
-  $("upcoming-heading").textContent = role === "student" ? "Coming up" : "On the horizon";
-  $("progress-intro").textContent = role === "teacher" ? "See the whole person, not just the numbers. Celebrate wins and spot where support helps." : "See your activity, celebrate what you have finished, and find your quiz results.";
-  $("progress-heading").innerHTML = role === "teacher" ? "Student <em>progress.</em>" : "My <em>progress.</em>";
+  setText("upcoming-eyebrow", role === "student" ? "A GOOD PLACE TO START" : "YOUR NEXT STEPS");
+  setText("upcoming-heading", role === "student" ? "Coming up" : "On the horizon");
+  setText("progress-intro", role === "teacher" ? "See the whole person, not just the numbers. Celebrate wins and spot where support helps." : "See your activity, celebrate what you have finished, and find your quiz results.");
+  const progressHeading = $("progress-heading"); if (progressHeading) progressHeading.innerHTML = role === "teacher" ? "Student <em>progress.</em>" : "My <em>progress.</em>";
   document.querySelectorAll(".teacher-only").forEach((node) => { node.hidden = state.role !== "teacher"; });
   document.querySelectorAll(".student-only").forEach((node) => { node.hidden = state.role !== "student"; });
-  $("role-switch").hidden = true;
-  $("class-picker-wrap").hidden = !(state.role === "teacher" && state.classrooms.length > 1);
+  setHidden("role-switch", true);
+  setHidden("class-picker-wrap", !(state.role === "teacher" && state.classrooms.length > 1));
   if (state.role === "student") document.querySelectorAll(".teacher-only").forEach((node) => { node.hidden = true; });
-  $("switch-account").hidden = true;
-  $("student-join-panel").hidden = !(state.profile?.role === "student" && !state.student);
-  $("fun-score-label").textContent = state.role === "teacher" ? "Class activity results" : "Play streak";
+  setHidden("switch-account", true);
+  setHidden("student-join-panel", !(state.profile?.role === "student" && !state.student));
+  setText("fun-score-label", state.role === "teacher" ? "Class activity results" : "Play streak");
   const studentLocked = state.role === "student" && !state.student;
-  $("assignments-code-gate").hidden = !studentLocked;
-  $("assignment-filters-row").hidden = studentLocked;
-  $("assignment-list").hidden = studentLocked;
-  $("updates-code-gate").hidden = !studentLocked;
-  $("announcement-list").hidden = studentLocked;
-  $("quiz-code-gate").hidden = !studentLocked; $("quiz-list").hidden = studentLocked;
-  document.querySelector(".quiz-history").hidden = studentLocked;
-  $("games-code-gate").hidden = !studentLocked; $("fun-games-grid").hidden = studentLocked;
-  $("fun-results-list").closest(".fun-score-panel").hidden = studentLocked;
+  setHidden("assignments-code-gate", !studentLocked);
+  setHidden("assignment-filters-row", studentLocked);
+  setHidden("assignment-list", studentLocked);
+  setHidden("updates-code-gate", !studentLocked);
+  setHidden("announcement-list", studentLocked);
+  setHidden("quiz-code-gate", !studentLocked); setHidden("quiz-list", studentLocked);
+  setHidden(document.querySelector(".quiz-history"), studentLocked);
+  setHidden("games-code-gate", !studentLocked); setHidden("fun-games-grid", studentLocked);
+  setHidden($("fun-results-list")?.closest(".fun-score-panel"), studentLocked);
   renderClassrooms(); renderFunResults();
   renderAll();
 }
@@ -70,7 +72,7 @@ function setPage(pageId) {
   document.querySelectorAll(".page").forEach((item) => item.classList.toggle("active", item.id === pageId));
   const nav = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
   $("page-title").textContent = nav ? nav.textContent.trim() : page.querySelector("h1")?.textContent.replace(/[.]/g, "") || "Overview";
-  if (pageId === "recommendations") loadFeedbackSummary();
+  if (pageId === "recommendations") feedbackSummary();
   if (pageId === "admin") renderAdmin();
   if (pageId === "help-chat") loadChat();
   if (pageId === "fun-zone") { if (state.role === "student") newScramble(); renderFunResults(); }
