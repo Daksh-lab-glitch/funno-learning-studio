@@ -42,3 +42,14 @@ Sign-in uses email and password. Choose Student or Teacher on the entry screen; 
 
 Teacher permissions are limited to their own private studio. Students cannot read another teacher's classes or activities through the Supabase Data API; row-level security enforces the same boundary as the frontend gates. Verification codes are only shown to their teacher; students must sign in before joining with one. Email confirmation follows the Supabase project's Auth settings. Files stay in the private `classroom-files` bucket (10 MB limit). Reminders currently appear in the app; email and push notifications are not configured.
 
+# AI activity drafts for teachers
+
+Funno's teacher quiz and activity forms can request an editable first draft from an AI model. The browser calls the `generate-learning-activity` Supabase Edge Function with the signed-in user's access token. The function verifies that the account's `user_profiles.role` is `teacher`, calls the OpenAI Responses API using structured JSON output, and returns a draft for the teacher to review. It never publishes generated content automatically and does not send learner records or names to the AI provider.
+
+To enable generation in a Supabase project:
+
+1. Add `OPENAI_API_KEY` in **Supabase Dashboard → Edge Functions → Secrets**. Keep the key out of frontend files and GitHub.
+2. Optionally set `OPENAI_MODEL`; the function defaults to `gpt-4.1-mini`.
+3. Deploy the `generate-learning-activity` Edge Function from `supabase/functions/generate-learning-activity` with JWT verification enabled.
+
+The current UI supports quiz drafts (3–8 multiple-choice questions) and classroom game/activity drafts. A teacher can edit the returned fields and then save through the existing quiz/activity flow. Local file/demo mode cannot call AI because it has no secure server-side provider key.

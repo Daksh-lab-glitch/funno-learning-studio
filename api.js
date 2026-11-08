@@ -156,6 +156,20 @@ window.CLASSROOM_SUPABASE_KEY = window.CLASSROOM_SUPABASE_KEY || "sb_publishable
     async getAttendanceHistory() { await modeReady; if (localMode) return list("attendance"); const ids = window.FunnoStudentIds || []; return ids.length ? rawRequest(`attendance_entries?select=*&student_id=in.(${ids.map(encodeURIComponent).join(",")})&order=class_date.desc&limit=100`) : []; },
     async saveAttendance(rows) { await modeReady; if (localMode) { rows.forEach((row) => { const old = demo.attendance.find((x) => x.student_id === row.student_id && x.class_date === row.class_date); if (old) Object.assign(old, row); else demo.attendance.push({ ...row, id: nextId("attendance") }); }); saveLocal(); return rows; } return rawRequest("attendance_entries?on_conflict=student_id,class_date", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify(rows) }); },
     async getQuizzes() { await modeReady; return localMode ? list("quizzes") : rawRequest(`quizzes?select=*&classroom_id=eq.${encodeURIComponent(activeClassroomId || -1)}&order=created_at.desc`); },
+    async generateLearningActivity(value) {
+      await modeReady;
+      if (localMode) throw new Error("Sign in to a teacher account and connect Supabase before generating an AI draft.");
+      const session = JSON.parse(localStorage.getItem("funno-auth-session") || "null");
+      if (!session?.access_token) throw new Error("Your session expired. Sign in again to generate an AI draft.");
+      const response = await fetch(`${url}/functions/v1/generate-learning-activity`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(value),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `AI draft generation failed (${response.status})`);
+      return result;
+    },
     async addQuiz(value) {
       await modeReady;
       if (localMode) { const row = { ...value, id: nextId("quizzes"), created_at: new Date().toISOString() }; demo.quizzes.unshift(row); saveLocal(); return row; }

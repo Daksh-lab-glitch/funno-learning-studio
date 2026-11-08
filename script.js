@@ -519,6 +519,43 @@ async function createQuiz(event) {
   if (!questions.length) { toast("Add at least one question first."); return; }
   try { await ClassroomAPI.addQuiz({ title: $("quiz-title").value.trim(), questions }); event.target.reset(); $("question-builder").replaceChildren(); addQuestionCard(0); closeModal($("quiz-modal")); await refreshData(); toast("Your quick quiz is ready for the class."); } catch (error) { showError(error, "Could not save quiz"); }
 }
+function setAiButtonBusy(button, busy, label = "✦ Generate with AI") { button.disabled = busy; button.textContent = busy ? "Creating your draft…" : label; }
+async function generateQuizDraft() {
+  if (state.profile?.role !== "teacher") { toast("Sign in with a teacher account to create an AI quiz."); return; }
+  const prompt = $("quiz-ai-prompt").value.trim();
+  if (prompt.length < 5) { $("quiz-ai-status").textContent = "Add a topic or a little more detail first."; $("quiz-ai-prompt").focus(); return; }
+  const button = $("generate-quiz-ai"); setAiButtonBusy(button, true); $("quiz-ai-status").textContent = "Making an editable quiz draft…";
+  try {
+    const draft = await ClassroomAPI.generateLearningActivity({ kind: "quiz", prompt, grade: $("quiz-ai-grade").value, count: Number($("quiz-ai-count").value), difficulty: "age-appropriate" });
+    $("quiz-title").value = draft.title;
+    $("question-builder").replaceChildren();
+    draft.questions.forEach((question, index) => {
+      addQuestionCard(index);
+      const card = document.querySelectorAll(".question-card")[index];
+      card.querySelector("label input").value = question.prompt;
+      card.querySelectorAll("[data-option]").forEach((input, optionIndex) => { input.value = question.options[optionIndex] || ""; });
+      card.querySelector("[data-correct]").value = String(question.answer);
+    });
+    $("quiz-ai-status").textContent = "Draft ready. Review the questions and correct answers before saving.";
+    $("question-builder").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (error) { $("quiz-ai-status").textContent = error.message; }
+  finally { setAiButtonBusy(button, false); }
+}
+async function generateGameDraft() {
+  if (state.profile?.role !== "teacher") { toast("Sign in with a teacher account to create an AI activity."); return; }
+  const prompt = $("assignment-ai-prompt").value.trim();
+  if (prompt.length < 5) { $("activity-ai-status").textContent = "Describe the skill or game idea first."; $("assignment-ai-prompt").focus(); return; }
+  const button = $("generate-activity-ai"); setAiButtonBusy(button, true); $("activity-ai-status").textContent = "Making an editable activity draft…";
+  try {
+    const draft = await ClassroomAPI.generateLearningActivity({ kind: "game", prompt, grade: $("assignment-ai-grade").value, count: 0, difficulty: "age-appropriate" });
+    $("assignment-title").value = draft.title;
+    $("assignment-description").value = `${draft.description}\n\n${draft.activity_instructions}`.trim().slice(0, 2000);
+    if ($("assignment-kind").value === "assignment") $("assignment-kind").value = "fun_challenge";
+    $("activity-ai-status").textContent = "Draft ready. Review or edit the title and instructions, then add it to your activities.";
+    $("assignment-title").focus();
+  } catch (error) { $("activity-ai-status").textContent = error.message; }
+  finally { setAiButtonBusy(button, false); }
+}
 function startQuiz(quiz) {
   if (state.role === "teacher") { toast("Switch to student view to try this quiz."); return; }
   if (!state.student) { toast("Enter your teacher’s verification code to unlock this quiz."); setPage("students"); return; }
@@ -682,7 +719,7 @@ function bindUI() {
   $("resource-search").addEventListener("input", renderResources); $("student-search").addEventListener("input", (event) => renderStudents(event.target.value));
   $("resource-filters").addEventListener("click", (event) => { const button = event.target.closest("[data-filter]"); if (!button) return; state.resourceFilter = button.dataset.filter; $("resource-filters").querySelectorAll(".chip").forEach((chip) => chip.classList.toggle("active", chip === button)); renderResources(); });
   $("assignment-filters").addEventListener("click", (event) => { const button = event.target.closest("[data-filter]"); if (!button) return; state.assignmentFilter = button.dataset.filter; $("assignment-filters").querySelectorAll(".chip").forEach((chip) => chip.classList.toggle("active", chip === button)); renderAssignments(); });
-  $("resource-form").addEventListener("submit", addResource); $("assignment-form").addEventListener("submit", addAssignment); $("quiz-form").addEventListener("submit", createQuiz); $("add-student-form").addEventListener("submit", addStudent); $("feedback-form").addEventListener("submit", submitFeedback); $("submit-quiz").addEventListener("click", submitQuiz);
+  $("resource-form").addEventListener("submit", addResource); $("assignment-form").addEventListener("submit", addAssignment); $("quiz-form").addEventListener("submit", createQuiz); $("generate-quiz-ai").addEventListener("click", generateQuizDraft); $("generate-activity-ai").addEventListener("click", generateGameDraft); $("add-student-form").addEventListener("submit", addStudent); $("feedback-form").addEventListener("submit", submitFeedback); $("submit-quiz").addEventListener("click", submitQuiz);
   $("auth-signout").addEventListener("click", signOut);
   $("add-question").addEventListener("click", () => addQuestionCard(document.querySelectorAll(".question-card").length));
   document.querySelectorAll("[data-filter]").forEach((button) => { if (button.classList.contains("chip")) button.type = "button"; });
