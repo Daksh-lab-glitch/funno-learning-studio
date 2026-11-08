@@ -668,7 +668,7 @@ function bindUI() {
   $("home-crumb").addEventListener("click", () => setPage("dashboard"));
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
   document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.go)));
-  document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.open === "assignment-modal") resetAssignmentForm(button.dataset.assignmentKind || "assignment"); openModal(button.dataset.open); }));
+  document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.open === "assignment-modal") resetAssignmentForm(button.dataset.assignmentKind || "assignment"); openModal(button.dataset.open); if (button.dataset.focus) $(button.dataset.focus)?.focus(); }));
   document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => closeModal(button.closest(".modal-backdrop"))));
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeModal(backdrop); }));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); closeChatContextMenu(); closeAssignmentActionMenu(); } });
