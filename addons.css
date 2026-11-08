@@ -125,3 +125,19 @@
 .chat-message.mine .chat-edit-actions .mini-button:first-child{background:#d9f4e7}
 @media(hover:hover){.chat-message-menu-trigger{opacity:0}.chat-message:hover .chat-message-menu-trigger,.chat-message:focus-within .chat-message-menu-trigger{opacity:.78}}
 @media(max-width:620px){.chat-message{max-width:88%;min-width:150px}.chat-message-menu-trigger{width:32px;height:28px;opacity:.8}.chat-context-menu{min-width:205px}.chat-edit-input{min-width:min(68vw,260px)}}
+
+/* Teacher controls for each activity card. */
+.assignment-card{position:relative;}
+.assignment-title-line{display:flex;align-items:center;flex-wrap:wrap;gap:9px;}
+.assignment-title-line h3{margin:0;}
+.assignment-pinned-label{padding:4px 8px;border-radius:99px;background:#fff3dc;color:#9b6727;font-size:10px;font-weight:700;}
+.assignment-card-pinned{border-color:#d2e6d8;box-shadow:inset 3px 0 #36a982,var(--shadow);}
+.assignment-card-actions{margin-left:auto;align-self:flex-start;order:5;}
+.assignment-menu-trigger{display:grid;place-items:center;width:34px;height:32px;padding:0;border:1px solid #e2ece5;border-radius:9px;background:#fff;color:#44665a;font-size:22px;line-height:1;}
+.assignment-menu-trigger:hover,.assignment-menu-trigger:focus-visible{border-color:#a7d0bb;background:#f1faf5;outline:2px solid #9bd3b6;outline-offset:1px;}
+.assignment-context-menu{position:fixed;z-index:1200;display:grid;min-width:190px;padding:6px;border:1px solid #dce8e1;border-radius:13px;background:#fff;box-shadow:0 14px 42px #183d322e;color:#24453e;}
+.assignment-context-action{padding:10px 12px;border:0;border-radius:8px;background:transparent;color:inherit;text-align:left;font:600 12px 'DM Sans',sans-serif;cursor:pointer;}
+.assignment-context-action:hover,.assignment-context-action:focus-visible{background:#edf7f1;color:#16785e;outline:0;}
+.assignment-details{display:grid;flex-basis:100%;gap:6px;padding:13px 15px;border:1px solid #e2eee6;border-radius:11px;background:#f8fbf8;color:#60776d;font-size:12px;line-height:1.5;}
+.assignment-details b{color:#244b40;font-size:13px;}
+@media(max-width:720px){.assignment-menu-trigger{width:38px;height:36px}.assignment-card-actions{margin-left:auto}.assignment-details{width:100%;}}

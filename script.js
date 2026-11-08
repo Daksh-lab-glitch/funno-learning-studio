@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const state = { students: [], resources: [], assignments: [], submissions: [], quizzes: [], results: [], attendance: [], announcements: [], profiles: [], classrooms: [], profile: null, student: null, messages: [], funResults: [], activeClassroomId: null, role: "student", resourceFilter: "all", assignmentFilter: "all", currentQuiz: null, currentAssignment: null, toastTimer: null, entryMode: "signin" };
+const state = { students: [], resources: [], assignments: [], submissions: [], quizzes: [], results: [], attendance: [], announcements: [], profiles: [], classrooms: [], profile: null, student: null, messages: [], funResults: [], activeClassroomId: null, role: "student", resourceFilter: "all", assignmentFilter: "all", currentQuiz: null, currentAssignment: null, editingAssignment: null, toastTimer: null, entryMode: "signin" };
 const initials = (name = "?") => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("");
 const safeDate = (value) => value ? new Date(`${value}T12:00:00`) : null;
 const dateText = (value) => { const date = safeDate(value); return date ? date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "No due date"; };
@@ -129,13 +129,52 @@ function renderAssignments() {
   const filtered = state.assignments.filter((a) => state.assignmentFilter === "all" || (state.assignmentFilter === "open" ? !hasSubmitted(a) : hasSubmitted(a)));
   if (state.role === "student" && !state.student) { list.append(el("div", "Enter your teacher’s verification code in Student progress to unlock assignments.", "empty-state")); return; }
   if (!filtered.length) { list.append(el("div", state.assignmentFilter === "submitted" ? "When you complete an activity, it will show up here." : "No activities yet. A fresh start is full of possibility.", "empty-state")); return; }
-  filtered.forEach((assignment) => {
+  filtered.sort((a, b) => Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned))).forEach((assignment) => {
     const card = el("article", undefined, "assignment-card"), icon = el("span", "✳", "assignment-symbol"), main = el("div", undefined, "assignment-main");
-    main.append(el("h3", assignment.title), el("p", assignment.description || "Your teacher has added a new classroom activity."));
+    const titleLine = el("div", undefined, "assignment-title-line"); titleLine.append(el("h3", assignment.title)); if (assignment.is_pinned) titleLine.append(el("span", "📌 Pinned", "assignment-pinned-label"));
+    main.append(titleLine, el("p", assignment.description || "Your teacher has added a new classroom activity."));
     const submission = mySubmission(assignment), complete = Boolean(submission), status = el("span", submission?.status === "graded" ? `Graded · ${submission.grade ?? "—"}/${assignment.max_points || 100}` : complete ? "Submitted · awaiting review" : "Ready when you are", `status-pill ${complete ? "done" : ""}`), meta = el("span", `Due ${dateText(assignment.due_date)} · ${assignment.max_points || 100} points`, "assignment-meta");
-    card.append(el("span", (assignment.activity_type || "assignment").replaceAll("_", " "), "activity-kind"), icon, main); if (state.role === "student") { const submit = el("button", complete && submission?.status !== "graded" ? "Edit submission" : "Submit work →", "mini-button"); submit.disabled = submission?.status === "graded"; submit.addEventListener("click", () => openSubmission(assignment, submission)); card.append(submit, status); if (assignment.attachment_path) { const open = el("a", `Open teacher file · ${assignment.file_name || "attachment"}`, "text-link"); open.href = assignment.attachment_url || "#"; open.target = "_blank"; open.rel = "noopener"; card.append(open); } if (submission?.teacher_feedback) card.append(el("p", `Teacher note: ${submission.teacher_feedback}`, "submission-feedback")); } else { card.append(meta); if (assignment.attachment_path) card.append(el("small", `Attached: ${assignment.file_name || "file"}`, "muted-note")); }
+    card.dataset.assignmentId = assignment.id;
+    card.append(el("span", (assignment.activity_type || "assignment").replaceAll("_", " "), "activity-kind"), icon, main);
+    if (state.role === "student") { const submit = el("button", complete && submission?.status !== "graded" ? "Edit submission" : "Submit work →", "mini-button"); submit.disabled = submission?.status === "graded"; submit.addEventListener("click", () => openSubmission(assignment, submission)); card.append(submit, status); if (assignment.attachment_path) { const open = el("a", `Open teacher file · ${assignment.file_name || "attachment"}`, "text-link"); open.href = assignment.attachment_url || "#"; open.target = "_blank"; open.rel = "noopener"; card.append(open); } if (submission?.teacher_feedback) card.append(el("p", `Teacher note: ${submission.teacher_feedback}`, "submission-feedback")); }
+    else {
+      card.append(meta); if (assignment.attachment_path) card.append(el("small", `Attached: ${assignment.file_name || "file"}`, "muted-note"));
+      const actions = el("div", undefined, "assignment-card-actions"), menuButton = el("button", "⋯", "assignment-menu-trigger"); menuButton.type = "button"; menuButton.setAttribute("aria-label", `Actions for ${assignment.title}`); menuButton.setAttribute("aria-haspopup", "menu");
+      menuButton.addEventListener("click", (event) => { event.stopPropagation(); const rect = menuButton.getBoundingClientRect(); openAssignmentActionMenu(assignment, card, rect.right, rect.bottom + 4); }); actions.append(menuButton); card.append(actions);
+      if (assignment.is_pinned) card.classList.add("assignment-card-pinned");
+    }
     list.append(card);
   });
+}
+function closeAssignmentActionMenu() { document.querySelector(".assignment-context-menu")?.remove(); }
+function openAssignmentActionMenu(assignment, card, x, y) {
+  closeAssignmentActionMenu(); const menu = el("div", undefined, "assignment-context-menu"); menu.setAttribute("role", "menu");
+  const addAction = (label, action) => { const button = el("button", label, "assignment-context-action"); button.type = "button"; button.setAttribute("role", "menuitem"); button.addEventListener("click", (event) => { event.stopPropagation(); closeAssignmentActionMenu(); handleAssignmentAction(action, assignment, card); }); menu.append(button); };
+  addAction("✎  Edit activity", "edit"); addAction("⌫  Delete activity", "delete"); addAction("ⓘ  Activity info", "info"); addAction(assignment.is_pinned ? "📌  Unpin activity" : "📌  Pin activity", "pin");
+  document.body.append(menu); menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - menu.offsetWidth - 8))}px`; menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - menu.offsetHeight - 8))}px`; menu.querySelector("button")?.focus();
+}
+function showAssignmentDetails(assignment, card) {
+  const existing = card.querySelector(".assignment-details"); if (existing) { existing.remove(); return; }
+  const details = el("div", undefined, "assignment-details"), submissions = state.submissions.filter((item) => String(item.assignment_id) === String(assignment.id)).length;
+  details.append(el("b", "Activity details"), el("span", `Type: ${(assignment.activity_type || "assignment").replaceAll("_", " ")}`), el("span", `Due date: ${assignment.due_date ? dateText(assignment.due_date) : "No due date"}`), el("span", `Points: ${assignment.max_points || 100}`), el("span", `Created: ${assignment.created_at ? new Date(assignment.created_at).toLocaleString() : "Not available"}`), el("span", `Submissions: ${submissions}`), el("span", assignment.is_pinned ? "Pinned to the top for this class" : "Not pinned"));
+  if (assignment.file_name) details.append(el("span", `Attachment: ${assignment.file_name}`)); card.append(details);
+}
+function editAssignment(assignment) {
+  state.editingAssignment = assignment; $("assignment-modal-title").textContent = "Edit activity"; $("assignment-kind").value = assignment.activity_type || "assignment"; $("assignment-title").value = assignment.title || ""; $("assignment-description").value = assignment.description || ""; $("assignment-file").value = ""; $("assignment-due").value = assignment.due_date || ""; $("assignment-points").value = assignment.max_points || 100;
+  const button = $("assignment-form").querySelector("button[type=submit],button:not([type])"); if (button) button.textContent = "Save activity changes";
+  openModal("assignment-modal");
+}
+async function handleAssignmentAction(action, assignment, card) {
+  if (action === "info") { showAssignmentDetails(assignment, card); return; }
+  if (action === "edit") { editAssignment(assignment); return; }
+  if (action === "delete") {
+    if (!window.confirm(`Delete “${assignment.title}”? This also removes its student submissions.`)) return;
+    try { await ClassroomAPI.deleteAssignment(assignment.id); if (assignment.attachment_path) await ClassroomAPI.deleteFile(assignment.attachment_path).catch(() => {}); await refreshData(); toast("Activity deleted."); }
+    catch (error) { showError(error, "Could not delete activity"); }
+    return;
+  }
+  try { if (assignment.is_pinned) await ClassroomAPI.unpinAssignment(assignment.id); else await ClassroomAPI.pinAssignment(assignment.id, state.profile.id); await refreshData(); toast(assignment.is_pinned ? "Activity unpinned." : "Activity pinned to the top."); }
+  catch (error) { showError(error, "Could not update activity pin"); }
 }
 function renderQuizzes() {
   const list = $("quiz-list"); list.replaceChildren();
@@ -442,10 +481,15 @@ async function addResource(event) {
 }
 function safeFileName(name) { return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-120) || "upload"; }
 async function removeResource(id) { try { const resource = state.resources.find((r) => String(r.id) === String(id)); await ClassroomAPI.deleteResource(id); if (resource?.storage_path) await ClassroomAPI.deleteFile(resource.storage_path); await refreshData(); toast("Resource removed."); } catch (error) { showError(error, "Could not remove resource"); } }
+function resetAssignmentForm(kind = "assignment") {
+  state.editingAssignment = null; $("assignment-form").reset(); $("assignment-kind").value = kind; $("assignment-modal-title").textContent = "Create an activity";
+  const button = $("assignment-form").querySelector("button[type=submit],button:not([type])"); if (button) button.textContent = "Add to activities";
+}
 async function addAssignment(event) {
-  event.preventDefault(); const file = $("assignment-file").files[0], path = file ? `resources/${state.activeClassroomId}/assignments/${crypto.randomUUID()}/${safeFileName(file.name)}` : null;
-  const value = { title: $("assignment-title").value.trim(), activity_type: $("assignment-kind").value, description: $("assignment-description").value.trim() || null, due_date: $("assignment-due").value || null, max_points: Number($("assignment-points").value), attachment_path: path, file_name: file?.name || null, file_size_bytes: file?.size || null };
-  try { if (!state.activeClassroomId) throw new Error("Your Funno Studio is still being prepared. Refresh and try again."); if (file) { if (file.size > 10 * 1024 * 1024) throw new Error("Please choose a file smaller than 10 MB."); await ClassroomAPI.uploadFile(file, path); } await ClassroomAPI.addAssignment(value); event.target.reset(); closeModal($("assignment-modal")); await refreshData(); toast("Activity published to your students."); } catch (error) { if (path) await ClassroomAPI.deleteFile(path).catch(() => {}); showError(error, "Could not save activity"); }
+  event.preventDefault(); const file = $("assignment-file").files[0], editing = state.editingAssignment, path = file ? `resources/${state.activeClassroomId}/assignments/${crypto.randomUUID()}/${safeFileName(file.name)}` : editing?.attachment_path || null;
+  const value = { title: $("assignment-title").value.trim(), activity_type: $("assignment-kind").value, description: $("assignment-description").value.trim() || null, due_date: $("assignment-due").value || null, max_points: Number($("assignment-points").value), attachment_path: path, file_name: file?.name || editing?.file_name || null, file_size_bytes: file?.size || editing?.file_size_bytes || null };
+  let saved = false;
+  try { if (!state.activeClassroomId) throw new Error("Your Funno Studio is still being prepared. Refresh and try again."); if (file) { if (file.size > 10 * 1024 * 1024) throw new Error("Please choose a file smaller than 10 MB."); await ClassroomAPI.uploadFile(file, path); } if (editing) await ClassroomAPI.updateAssignment(editing.id, value); else await ClassroomAPI.addAssignment(value); saved = true; if (file && editing?.attachment_path) await ClassroomAPI.deleteFile(editing.attachment_path).catch(() => {}); resetAssignmentForm(); closeModal($("assignment-modal")); await refreshData(); toast(editing ? "Activity changes saved." : "Activity published to your students."); } catch (error) { if (file && path && !saved) await ClassroomAPI.deleteFile(path).catch(() => {}); showError(error, "Could not save activity"); }
 }
 async function completeAssignment(assignment) {
   const student = currentStudent(); if (!student) { toast("Ask your teacher to add your learner profile first."); return; }
@@ -585,11 +629,11 @@ function bindUI() {
   $("home-crumb").addEventListener("click", () => setPage("dashboard"));
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
   document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.go)));
-  document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.assignmentKind) $("assignment-kind").value = button.dataset.assignmentKind; openModal(button.dataset.open); }));
+  document.querySelectorAll("[data-open]").forEach((button) => button.addEventListener("click", () => { if (button.dataset.open === "assignment-modal") resetAssignmentForm(button.dataset.assignmentKind || "assignment"); openModal(button.dataset.open); }));
   document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => closeModal(button.closest(".modal-backdrop"))));
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeModal(backdrop); }));
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); closeChatContextMenu(); } });
-  document.addEventListener("click", (event) => { if (!event.target.closest(".chat-context-menu, .chat-message-menu-trigger")) closeChatContextMenu(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); closeChatContextMenu(); closeAssignmentActionMenu(); } });
+  document.addEventListener("click", (event) => { if (!event.target.closest(".chat-context-menu, .chat-message-menu-trigger")) closeChatContextMenu(); if (!event.target.closest(".assignment-context-menu, .assignment-menu-trigger")) closeAssignmentActionMenu(); });
   $("role-switch").addEventListener("click", () => { const next = state.role === "teacher" ? "student" : "teacher"; setRole(next); toast(next === "student" ? "Student view is ready. Choose a learner from the class list in teacher view." : "You’re back in teacher view."); });
   $("save-attendance").addEventListener("click", saveAttendance); $("attendance-date").addEventListener("change", renderAttendance);
   $("submission-form").addEventListener("submit", saveSubmission); $("announcement-form").addEventListener("submit", addAnnouncement);
@@ -625,6 +669,10 @@ function bindUI() {
   });
   ["pointerup", "pointercancel", "pointerleave"].forEach((type) => chatThread.addEventListener(type, stopLongPress));
   chatThread.addEventListener("pointermove", (event) => { if (Math.abs(event.movementX) + Math.abs(event.movementY) > 12) stopLongPress(); });
+  $("assignment-list").addEventListener("contextmenu", (event) => {
+    const card = event.target.closest(".assignment-card"); if (!card || state.role !== "teacher") return;
+    event.preventDefault(); const assignment = state.assignments.find((item) => String(item.id) === card.dataset.assignmentId); if (assignment) openAssignmentActionMenu(assignment, card, event.clientX, event.clientY);
+  });
   $("check-scramble").addEventListener("click", checkScramble);
   document.querySelectorAll(".pattern-answer").forEach((button) => button.addEventListener("click", async () => { const correct = button.dataset.answer === "15"; $("pattern-message").textContent = correct ? "That’s it! You spotted the +3 pattern ✨" : "Try adding the same number each time."; if (correct) await scoreFun("number-pattern", 100); }));
   $("curiosity-done").addEventListener("click", async () => { $("curiosity-message").textContent = "Wonderful noticing. Tell your teacher what you found!"; await scoreFun("curiosity-break", 100); });
