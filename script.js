@@ -7,6 +7,13 @@ function el(tag, text, className = "") { const node = document.createElement(tag
 function showMessage(text, isError = false) { const node = $("app-message"); node.textContent = text; node.className = isError ? "error" : "success"; setTimeout(() => { node.textContent = ""; node.className = ""; }, 3500); }
 function toast(message) { const node = $("toast"); node.textContent = message; node.classList.add("show"); clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => node.classList.remove("show"), 2600); }
 function showError(error, prefix = "Something went wrong") { showMessage(`${prefix}: ${error.message}`, true); }
+function showEntryView(view) {
+  const views = { home: $("landing-home"), explore: $("landing-explore"), login: $("landing-login") };
+  if (!views[view]) return;
+  Object.entries(views).forEach(([name, panel]) => { panel.hidden = name !== view; });
+  $("entry-gate").dataset.view = view;
+  $("entry-gate").scrollTo({ top: 0, behavior: "smooth" });
+}
 function engagement(student) { const score = Number(student.attendance) * .3 + Number(student.assessment) * .3 + Number(student.participation) * .4; return { score: Math.round(score), state: score >= 80 ? "High" : score >= 60 ? "Moderate" : "Low" }; }
 function roleName(student) { return student?.name || localStorage.getItem("bloom-student-name") || "Aanya Patel"; }
 function currentStudent() { return state.student || (state.students.find((student) => String(student.id) === String(localStorage.getItem("bloom-student-id"))) || state.students[0] || null); }
@@ -505,6 +512,7 @@ async function signOut() {
   catch (error) { showError(error, "Could not sign out"); }
 }
 function bindUI() {
+  $("entry-gate").addEventListener("click", (event) => { const button = event.target.closest("[data-entry-view]"); if (!button) return; event.preventDefault(); showEntryView(button.dataset.entryView); });
   $("home-crumb").addEventListener("click", () => setPage("dashboard"));
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.page)));
   document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => setPage(button.dataset.go)));
@@ -541,4 +549,3 @@ function bindUI() {
 const now = new Date(); $("today-date").textContent = now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 bindUI(); addQuestionCard(0); setEntryMode("signin"); setRole("student"); refreshData();
 setInterval(() => { if (state.profile && $("help-chat").classList.contains("active")) loadChat(); }, 15000);
-

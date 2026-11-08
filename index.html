@@ -60,29 +60,40 @@
       </div><footer class="footer"><span>Funno <span class="footer-dot">✳</span> Learning, growing, together.</span><span>A calmer classroom starts with connection.</span></footer>
     </main>
   </div>
-  <section class="entry-gate" id="entry-gate" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+  <section class="entry-gate" id="entry-gate" role="dialog" aria-modal="true" aria-label="Funno welcome and sign-in">
     <header class="landing-nav">
-      <a class="brand entry-brand" href="#entry-title"><span class="brand-mark">f.</span><span>Funno<small>LEARNING STUDIO</small></span></a>
-      <nav class="landing-links" aria-label="Welcome navigation"><a href="#entry-title">Home</a><a href="#entry-features">Explore</a><a href="#entry-role">For teachers & students</a></nav>
-      <a class="landing-nav-cta" href="#entry-auth-form">Sign in <span>↗</span></a>
+      <button class="brand entry-brand landing-home-trigger" type="button" data-entry-view="home" aria-label="Funno home"><span class="brand-mark">f.</span><span>Funno<small>LEARNING STUDIO</small></span></button>
+      <button class="landing-nav-cta" type="button" data-entry-view="login">Sign in <span>↗</span></button>
     </header>
-    <main class="landing-main">
+    <main class="landing-main landing-view" id="landing-home">
       <section class="landing-copy">
         <span class="landing-kicker"><i></i> LEARN · PLAY · GROW</span>
         <h1 id="entry-title">Grow your skills.<br><em>Enjoy the journey.</em></h1>
         <p>Teacher-guided lessons, quick quizzes and playful challenges—all in one bright learning space.</p>
-        <div class="landing-actions"><a class="button button-primary" href="#entry-auth-form">Get started <span>→</span></a><a class="button button-outline" href="#entry-features">Explore Funno</a></div>
-        <div class="landing-features" id="entry-features"><span><i>✳</i> Quick quizzes</span><span><i>✦</i> Creative challenges</span><span><i>⌂</i> Teacher support</span></div>
+        <div class="landing-actions"><button class="button button-primary" type="button" data-entry-view="login">Get started <span>→</span></button><button class="button button-outline" type="button" data-entry-view="explore">Explore Funno</button></div>
+        <div class="landing-features"><span><i>✳</i> Quick quizzes</span><span><i>✦</i> Creative challenges</span><span><i>⌂</i> Teacher support</span></div>
         <div class="landing-proof"><div class="proof-avatars"><b>F</b><b>✳</b><b>+</b></div><p><strong>A little progress adds up.</strong><br><small>Find your next step with Funno.</small></p></div>
         <div class="landing-orbit orbit-one"></div><div class="landing-orbit orbit-two"></div><div class="landing-dot dot-one"></div><div class="landing-dot dot-two"></div>
       </section>
-      <section class="entry-card" aria-label="Sign in or create a Funno account">
-        <div class="entry-card-top"><span class="entry-card-icon">✳</span><span class="entry-card-caption">YOUR LEARNING SPACE</span></div>
-        <h2>Welcome to <em>Funno.</em></h2><p class="entry-card-lead">Sign in or create an account to continue.</p>
-        <div class="entry-tabs"><button type="button" id="entry-signin-tab" class="active">Sign in</button><button type="button" id="entry-signup-tab">Create an account</button></div>
-        <form id="entry-auth-form" class="entry-form"><div id="entry-signup-fields" hidden><label>Your name<input id="entry-name" maxlength="100" autocomplete="name" placeholder="e.g. Priya Shah"></label></div><label>Continue as<select id="entry-role"><option value="student">Student</option><option value="teacher">Teacher</option></select></label><small id="signup-next-step">Students need their teacher’s code to open that teacher’s learning space.</small><div id="entry-teacher-code-wrap" class="entry-teacher-code-wrap"><label for="entry-teacher-code">Teacher access code</label><input id="entry-teacher-code" type="text" minlength="6" maxlength="12" pattern="[A-Za-z0-9]{6,12}" autocomplete="off" autocapitalize="characters" spellcheck="false" required><small>This code connects you to one teacher’s assignments, updates, quizzes and games.</small></div><label>Email<input id="entry-email" type="email" autocomplete="email" required placeholder="you@example.com"></label><label>Password<input id="entry-password" type="password" minlength="8" autocomplete="current-password" required placeholder="At least 8 characters"></label><button class="button button-primary entry-submit" id="entry-submit">Sign in →</button><p id="entry-message" role="status" aria-live="polite"></p><small>For children, use an account with a teacher or guardian’s permission.</small></form>
-        <div class="entry-card-footer"><span>🔒</span> Your classroom stays connected to your teacher.</div>
-      </section>
+      <div class="landing-visual" aria-hidden="true"><div class="visual-ring visual-ring-one"></div><div class="visual-ring visual-ring-two"></div><div class="visual-core"><span>✳</span><b>Learn<br>with joy.</b></div><div class="visual-float visual-lessons"><span>▤</span><div><b>Teacher-guided</b><small>Lessons & support</small></div></div><div class="visual-float visual-play"><span>✦</span><div><b>Playful practice</b><small>Quizzes & challenges</small></div></div><i class="visual-spark spark-a">✦</i><i class="visual-spark spark-b">✳</i></div>
+    </main>
+    <main class="landing-view explore-page" id="landing-explore" hidden>
+      <button class="view-back" type="button" data-entry-view="home">← Back to welcome</button>
+      <section class="explore-heading"><span class="landing-kicker"><i></i> WHY FUNNO EXISTS</span><h1>Learning works better when <em>everyone feels connected.</em></h1><p>In a busy classroom, assignments can get scattered, practice can feel repetitive, and it can be hard for a teacher to spot who needs a little help. Funno brings learning activities, progress, and teacher support into one shared space.</p></section>
+      <div class="explore-cards">
+        <article class="explore-card"><span>01 · THE CHALLENGE</span><h2>Practice can lose its spark</h2><p>When learning is only a list of tasks, students may struggle to stay curious or know what to try next.</p></article>
+        <article class="explore-card"><span>02 · THE TEACHER’S VIEW</span><h2>Progress needs a clear home</h2><p>Teachers need one place to share lessons and activities, review results, and offer feedback to their learners.</p></article>
+        <article class="explore-card"><span>03 · THE FUNNO APPROACH</span><h2>Learn, play, and get support</h2><p>Teachers create quizzes, assignments, and playful challenges. Students use their teacher’s code to reach that teacher’s learning space.</p></article>
+      </div>
+      <section class="explore-steps"><div><span class="eyebrow">HOW IT WORKS</span><h2>One simple path into learning.</h2></div><ol><li><b>Teacher creates</b><span>A private studio and a code to share.</span></li><li><b>Student joins</b><span>Sign in, enter the teacher’s code, and connect to that studio.</span></li><li><b>Learning continues</b><span>Try activities, see results, and ask the teacher for help.</span></li></ol></section>
+      <div class="explore-cta"><div><b>Ready to find your next bright idea?</b><p>Sign in or create a Funno account to continue.</p></div><button class="button button-primary" type="button" data-entry-view="login">Get started →</button></div>
+    </main>
+    <main class="landing-view login-page" id="landing-login" hidden>
+      <button class="view-back" type="button" data-entry-view="home">← Back to welcome</button>
+      <div class="login-layout"><section class="login-welcome"><span class="landing-kicker"><i></i> YOUR FUNNO ACCOUNT</span><h1>Step into your <em>learning space.</em></h1><p>Sign in to reach your teacher’s activities, share your progress, and keep learning at your own pace.</p><div class="login-welcome-list"><span><i>✳</i> Quizzes and playful challenges</span><span><i>⌂</i> Your teacher’s lessons and feedback</span><span><i>✦</i> Your own learning progress</span></div></section>
+        <section class="entry-card" aria-label="Sign in or create a Funno account"><div class="entry-card-top"><span class="entry-card-icon">✳</span><span class="entry-card-caption">YOUR LEARNING SPACE</span></div><h2>Welcome to <em>Funno.</em></h2><p class="entry-card-lead">Sign in or create an account to continue.</p><div class="entry-tabs"><button type="button" id="entry-signin-tab" class="active">Sign in</button><button type="button" id="entry-signup-tab">Create an account</button></div>
+          <form id="entry-auth-form" class="entry-form"><div id="entry-signup-fields" hidden><label>Your name<input id="entry-name" maxlength="100" autocomplete="name" placeholder="e.g. Priya Shah"></label></div><label>Continue as<select id="entry-role"><option value="student">Student</option><option value="teacher">Teacher</option></select></label><small id="signup-next-step">Students need their teacher’s code to open that teacher’s learning space.</small><div id="entry-teacher-code-wrap" class="entry-teacher-code-wrap"><label for="entry-teacher-code">Teacher access code</label><input id="entry-teacher-code" type="text" minlength="6" maxlength="12" pattern="[A-Za-z0-9]{6,12}" autocomplete="off" autocapitalize="characters" spellcheck="false" required><small>This code connects you to one teacher’s assignments, updates, quizzes and games.</small></div><label>Email<input id="entry-email" type="email" autocomplete="email" required placeholder="you@example.com"></label><label>Password<input id="entry-password" type="password" minlength="8" autocomplete="current-password" required placeholder="At least 8 characters"></label><button class="button button-primary entry-submit" id="entry-submit">Sign in →</button><p id="entry-message" role="status" aria-live="polite"></p><small>For children, use an account with a teacher or guardian’s permission.</small></form><div class="entry-card-footer"><span>🔒</span> Your classroom stays connected to your teacher.</div></section>
+      </div>
     </main>
     <footer class="landing-footer"><span>Funno <i>✳</i> Learning, growing, together.</span><span>Made for curious minds.</span></footer>
   </section>
@@ -96,4 +107,3 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="api.js"></script><script src="ml-model.js"></script><script src="script.js"></script>
 </body></html>
-
