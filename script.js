@@ -291,7 +291,7 @@ function renderChatStudentOptions() {
   const select = $("chat-student-select"), wrap = $("chat-student-wrap"); if (!select || !wrap) return;
   select.replaceChildren(); state.students.forEach((student) => { const option = el("option", student.name); option.value = student.id; select.append(option); });
   wrap.hidden = state.role !== "teacher";
-  if (state.role === "student") $("chat-title").textContent = state.profile?.display_name ? `A conversation with your teacher` : "A conversation with your teacher";
+  $("chat-title").textContent = state.role === "teacher" ? "A conversation with your student" : "A conversation with your teacher";
 }
 function renderTeacherStudio() {
   const list = $("studio-recent-list"); if (!list) return; list.replaceChildren();
