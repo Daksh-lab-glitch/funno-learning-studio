@@ -10,7 +10,7 @@ function showMessage(text, isError = false) { const node = $("app-message"); nod
 function toast(message) { const node = $("toast"); node.textContent = message; node.classList.add("show"); clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => node.classList.remove("show"), 2600); }
 function showError(error, prefix = "Something went wrong") { showMessage(`${prefix}: ${error.message}`, true); }
 function showEntryView(view) {
-  const views = { home: $("landing-home"), explore: $("landing-explore"), login: $("landing-login") };
+  const views = { home: $("landing-home"), explore: $("landing-explore"), login: $("landing-login"), "student-code": $("landing-student-code") };
   if (!views[view]) return;
   Object.entries(views).forEach(([name, panel]) => { panel.hidden = name !== view; });
   $("entry-gate").dataset.view = view;
@@ -443,6 +443,22 @@ async function scoreFun(type, score) { const student = currentStudent(); if (!st
 async function checkScramble() { if (!state.scrambleAnswer) newScramble(); const correct = $("scramble-answer").value.trim().toUpperCase() === state.scrambleAnswer; $("scramble-message").textContent = correct ? "You got it! A lovely bit of wordplay ✨" : "Not quite yet—have another go!"; if (correct) { await scoreFun("word-scramble", 100); newScramble(); } }
 async function renderFunResults() { const list = $("fun-results-list"); if (!list) return; list.replaceChildren(); const rows = state.funResults.filter((item) => state.role === "teacher" || String(item.student_id) === String(currentStudent()?.id)); $("fun-streak").textContent = rows.length; if (!rows.length) list.append(el("p", "Your first word, pattern or curiosity activity will appear here.", "empty-state")); rows.slice(0, 8).forEach((item) => { const student = state.students.find((record) => String(record.id) === String(item.student_id)), name = state.role === "teacher" ? `${student?.name || "Learner"} · ` : ""; list.append(el("p", `${name}${item.activity_type.replaceAll("-", " ")} · ${item.score}% · ${new Date(item.created_at).toLocaleDateString()}`)); }); }
 async function joinClassFromPortal(event) { event.preventDefault(); const note = $("student-join-message"); note.textContent = "Checking your teacher’s code…"; try { await ClassroomAPI.joinClass($("join-class-code").value.trim().toUpperCase(), $("join-student-name").value.trim()); await refreshData(); note.textContent = "Code verified. Your teacher’s activities are unlocked."; toast("Welcome to Funno!"); } catch (error) { note.textContent = error.message; } }
+async function connectStudentFromGate(event) {
+  event.preventDefault();
+  const card = document.querySelector(".student-access-card"), input = $("student-access-code"), note = $("student-access-message"), button = $("student-access-submit");
+  if (state.profile?.role !== "student") { note.textContent = "Please sign in with your student account first."; return; }
+  const code = input.value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6,12}$/.test(code)) { note.textContent = "Enter the 6–12 letter or number code from your teacher."; input.focus(); return; }
+  note.classList.remove("success"); note.textContent = "Checking your teacher’s code…"; button.disabled = true; card.setAttribute("aria-busy", "true");
+  try {
+    await ClassroomAPI.joinClass(code, state.profile.display_name || "Student");
+    input.value = ""; note.classList.add("success"); note.textContent = "Code accepted. Opening your learning space…";
+    await refreshData();
+    if (!state.student) throw new Error("The code was accepted, but Funno couldn’t connect your student profile. Please try again.");
+    toast("Your teacher’s learning space is ready.");
+  } catch (error) { note.classList.remove("success"); note.textContent = error.message; input.focus(); }
+  finally { button.disabled = false; card.removeAttribute("aria-busy"); }
+}
 async function saveTeacherCode(event) { event.preventDefault(); const input = $("teacher-access-code"), note = $("teacher-code-message"), code = input.value.trim().toUpperCase(); if (!/^[A-Z0-9]{6,12}$/.test(code)) { note.textContent = "Use 6–12 letters or numbers."; return; } note.textContent = "Saving your code…"; try { const saved = await ClassroomAPI.setTeacherStudioCode(code); input.value = String(saved || code).replaceAll('"', ""); await refreshData(); note.textContent = "Your verification code is saved. Share it with your students."; toast("Student code updated."); } catch (error) { note.textContent = error.message.includes("already in use") ? "That code is already in use. Please choose another." : error.message; } }
 
 async function refreshData() {
@@ -457,6 +473,11 @@ async function refreshData() {
     state.activeClassroomId = state.profile.role === "student" ? Number(state.student?.classroom_id) || null : Number(savedClass) || Number(state.classrooms[0]?.id) || null;
     if (state.activeClassroomId && !state.classrooms.some((c) => String(c.id) === String(state.activeClassroomId))) state.activeClassroomId = Number(state.classrooms[0]?.id) || null;
     ClassroomAPI.setActiveClassroom(state.activeClassroomId);
+    if (state.profile.role === "student" && !state.student) {
+      state.role = "student"; state.students = []; state.resources = []; state.assignments = []; state.submissions = []; state.quizzes = []; state.results = []; state.announcements = []; state.attendance = []; state.funResults = [];
+      $("student-access-code").value = ""; $("student-access-message").textContent = ""; $("student-access-message").classList.remove("success");
+      $("entry-gate").hidden = false; showEntryView("student-code"); setRole("student"); $("student-access-code").focus(); return;
+    }
     if (state.profile.role === "student" && state.student?.id) localStorage.setItem("bloom-student-id", state.student.id);
     const students = await ClassroomAPI.getStudents();
     window.FunnoStudentIds = students.map((s) => s.id);
@@ -602,12 +623,9 @@ function setEntryMode(mode) {
 }
 function updateEntryRole() {
   const role = $("entry-role").value, signingIn = state.entryMode === "signin";
-  const codeWrap = $("entry-teacher-code-wrap"), codeInput = $("entry-teacher-code");
-  codeWrap.hidden = role !== "student";
-  codeInput.required = role === "student";
   $("signup-next-step").textContent = role === "teacher"
     ? signingIn ? "Teacher sign-in opens your activity studio and student results." : "Create a teacher account to publish assignments, games and quizzes."
-    : signingIn ? "Enter your teacher’s code to open only that teacher’s learning space." : "Use the code your teacher shared. It connects this student account to that teacher only.";
+    : signingIn ? "After sign-in, enter your teacher’s code to open only that teacher’s learning space." : "After creating your account, sign in and enter the code your teacher shared.";
 }
 function readPendingOnboarding() { try { return JSON.parse(localStorage.getItem("funno-pending-onboarding") || "null"); } catch { return null; } }
 async function completePendingOnboarding() {
@@ -619,20 +637,17 @@ async function completePendingOnboarding() {
 }
 async function authenticateEntry(event) {
   event.preventDefault(); const message = $("entry-message"), email = $("entry-email").value.trim(), password = $("entry-password").value;
-  let selectedRole = $("entry-role").value, signedInThisAttempt = false, teacherCodeAccepted = false;
-  const teacherCode = $("entry-teacher-code").value.trim().toUpperCase();
+  const selectedRole = $("entry-role").value;
   message.textContent = "Connecting securely…"; $("entry-auth-form").setAttribute("aria-busy", "true");
   try {
     if (state.entryMode === "signup") {
       const name = $("entry-name").value.trim(), pending = { role: selectedRole, email: email.toLowerCase() };
       localStorage.setItem("funno-pending-onboarding", JSON.stringify(pending));
       const result = await ClassroomAPI.signUp(email, password, name);
-      if (!result.access_token) { message.textContent = selectedRole === "student" ? "Account created. Confirm your email, then sign in as a student and enter your teacher’s code to connect to that studio." : "Account created as teacher. Confirm your email, then choose teacher here to sign in."; return; }
-      signedInThisAttempt = true;
+      if (!result.access_token) { message.textContent = selectedRole === "student" ? "Account created. Confirm your email, then sign in as a student. You’ll enter your teacher’s code on the next screen." : "Account created as teacher. Confirm your email, then choose teacher here to sign in."; return; }
       await completePendingOnboarding();
     } else {
       await ClassroomAPI.signIn(email, password);
-      signedInThisAttempt = true;
       await completePendingOnboarding();
     }
     const profile = await ClassroomAPI.getMyProfile();
@@ -641,23 +656,11 @@ async function authenticateEntry(event) {
       await ClassroomAPI.signOut();
       throw new Error(`This email belongs to a ${profile.role} account. Choose ${profile.role} above and sign in again.`);
     }
-    if (profile.role === "student") {
-      await ClassroomAPI.joinClass(teacherCode, profile.display_name || $("entry-name").value.trim());
-      teacherCodeAccepted = true;
-      $("entry-teacher-code").value = "";
-    }
     $("entry-password").value = ""; await refreshData();
     if (!state.profile) throw new Error("We couldn’t load your account profile. Check the Supabase migration and try again.");
-    toast(state.profile.role === "teacher" ? "Your Funno Studio is ready." : state.student ? "Welcome to your Funno Studio." : "Enter the verification code from your teacher.");
+    toast(state.profile.role === "teacher" ? "Your Funno Studio is ready." : state.student ? "Welcome to your Funno Studio." : "Enter your teacher’s code to continue.");
   } catch (error) {
     let session = null; try { session = JSON.parse(localStorage.getItem("funno-auth-session") || "null"); } catch { session = null; }
-    if (signedInThisAttempt && selectedRole === "student" && !teacherCodeAccepted && session?.access_token) {
-      await ClassroomAPI.signOut();
-      state.profile = null; state.student = null; state.classrooms = []; state.activeClassroomId = null;
-      $("entry-gate").hidden = false;
-      message.textContent = error.message;
-      return;
-    }
     if (session?.access_token) {
       await refreshData();
       if (state.profile?.role === "student" && !state.student) $("student-join-message").textContent = error.message;
@@ -668,7 +671,7 @@ async function authenticateEntry(event) {
   finally { $("entry-auth-form").removeAttribute("aria-busy"); }
 }
 async function signOut() {
-  try { await ClassroomAPI.signOut(); state.profile = null; state.student = null; state.classrooms = []; state.profiles = []; state.role = "student"; $("entry-teacher-code").value = ""; $("entry-gate").hidden = false; setEntryMode("signin"); await refreshData(); $("entry-email").focus(); toast("You’re signed out of Funno."); }
+  try { await ClassroomAPI.signOut(); state.profile = null; state.student = null; state.classrooms = []; state.profiles = []; state.role = "student"; $("entry-gate").hidden = false; setEntryMode("signin"); showEntryView("login"); await refreshData(); $("entry-email").focus(); toast("You’re signed out of Funno."); }
   catch (error) { showError(error, "Could not sign out"); }
 }
 function bindUI() {
@@ -690,6 +693,7 @@ function bindUI() {
   $("entry-auth-form").addEventListener("submit", authenticateEntry);
   $("entry-signin-tab").addEventListener("click", () => setEntryMode("signin")); $("entry-signup-tab").addEventListener("click", () => setEntryMode("signup"));
   $("entry-role").addEventListener("change", updateEntryRole);
+  $("student-access-form").addEventListener("submit", connectStudentFromGate); $("student-access-signout").addEventListener("click", signOut);
   $("student-join-form").addEventListener("submit", joinClassFromPortal);
   $("teacher-code-form").addEventListener("submit", saveTeacherCode);
   $("class-picker").addEventListener("change", async (event) => { state.activeClassroomId = Number(event.target.value) || null; localStorage.setItem(`funno-class-${state.profile.id}`, state.activeClassroomId); ClassroomAPI.setActiveClassroom(state.activeClassroomId); await refreshData(); });
