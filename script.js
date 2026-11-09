@@ -528,7 +528,11 @@ async function generateQuizDraft() {
   try {
     const subject = $("quiz-ai-subject").value;
     if (!subject) { $("quiz-ai-status").textContent = "Choose a subject before generating the quiz."; $("quiz-ai-subject").focus(); return; }
-    const draft = await ClassroomAPI.generateLearningActivity({ kind: "quiz", prompt, subject, grade: $("quiz-ai-grade").value, count: Number($("quiz-ai-count").value), difficulty: "age-appropriate" });
+    const requestedCount = Number($("quiz-ai-count").value);
+    const draft = await ClassroomAPI.generateLearningActivity({ kind: "quiz", prompt, subject, grade: $("quiz-ai-grade").value, count: requestedCount, difficulty: "age-appropriate" });
+    if (!Array.isArray(draft.questions) || draft.questions.length !== requestedCount) {
+      throw new Error(`The draft returned ${draft.questions?.length ?? 0} of ${requestedCount} questions. Try generating it again.`);
+    }
     $("quiz-title").value = draft.title;
     $("question-builder").replaceChildren();
     draft.questions.forEach((question, index) => {
@@ -538,7 +542,7 @@ async function generateQuizDraft() {
       card.querySelectorAll("[data-option]").forEach((input, optionIndex) => { input.value = question.options[optionIndex] || ""; });
       card.querySelector("[data-correct]").value = String(question.answer);
     });
-    $("quiz-ai-status").textContent = "Draft ready. Review the questions and correct answers before saving.";
+    $("quiz-ai-status").textContent = `Draft ready: ${draft.questions.length} questions. Scroll within this form to review them all before saving.`;
     $("question-builder").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (error) { $("quiz-ai-status").textContent = error.message; }
   finally { setAiButtonBusy(button, false); }
