@@ -21,27 +21,32 @@ function reply(body: Record<string, unknown>, status = 200) {
   });
 }
 
-const geminiActivitySchema = {
-  type: "OBJECT",
-  properties: {
-    title: { type: "STRING" },
-    description: { type: "STRING" },
-    activity_instructions: { type: "STRING" },
-    questions: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          prompt: { type: "STRING" },
-          options: { type: "ARRAY", items: { type: "STRING" } },
-          answer: { type: "INTEGER" },
+function geminiActivitySchema(kind: string | undefined, count: number) {
+  const expectedQuestions = kind === "quiz" ? count : 0;
+  return {
+    type: "OBJECT",
+    properties: {
+      title: { type: "STRING" },
+      description: { type: "STRING" },
+      activity_instructions: { type: "STRING" },
+      questions: {
+        type: "ARRAY",
+        minItems: expectedQuestions,
+        maxItems: expectedQuestions,
+        items: {
+          type: "OBJECT",
+          properties: {
+            prompt: { type: "STRING" },
+            options: { type: "ARRAY", items: { type: "STRING" } },
+            answer: { type: "INTEGER" },
+          },
+          required: ["prompt", "options", "answer"],
         },
-        required: ["prompt", "options", "answer"],
       },
     },
-  },
-  required: ["title", "description", "activity_instructions", "questions"],
-};
+    required: ["title", "description", "activity_instructions", "questions"],
+  };
+}
 
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -110,8 +115,8 @@ Deno.serve(async (request: Request) => {
         }],
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: geminiActivitySchema,
-          maxOutputTokens: kind === "quiz" ? 2600 : 1000,
+          responseSchema: geminiActivitySchema(kind, count),
+          maxOutputTokens: kind === "quiz" ? 5000 : 1000,
           temperature: 0.4,
         },
       }),
