@@ -23,10 +23,7 @@ function myName() { return state.role === "student" ? roleName(currentStudent())
 function setRole(role) {
   state.role = state.profile?.role || role; localStorage.setItem("bloom-role", state.role);
   const student = currentStudent(); if (student) { localStorage.setItem("bloom-student-id", student.id); localStorage.setItem("bloom-student-name", student.name); }
-  const roleLabel = $("role-label"); if (roleLabel) { roleLabel.replaceChildren(document.createTextNode(role === "teacher" ? "Teacher view" : myName())); roleLabel.append(el("small", role === "teacher" ? "Switch to student view" : "Switch to teacher view")); }
   setText("user-avatar", role === "teacher" ? "T" : initials(myName()));
-  const roleAvatar = $("role-switch")?.querySelector(".role-avatar"); if (roleAvatar) roleAvatar.textContent = role === "teacher" ? "T" : initials(myName());
-  setHidden("role-switch", Boolean(state.profile));
   setHidden("switch-account", !(state.profile?.role === "teacher" || state.profile?.role === "student"));
   setText("welcome-subtitle", role === "teacher" ? "A little curiosity goes a long way. Here’s your class at a glance." : `Welcome back, ${myName().split(" ")[0]}. Your learning story is right here.`);
   const welcomeHeading = $("welcome-heading"); welcomeHeading?.replaceChildren();
@@ -47,7 +44,6 @@ function setRole(role) {
   const progressHeading = $("progress-heading"); if (progressHeading) progressHeading.innerHTML = role === "teacher" ? "Student <em>progress.</em>" : "My <em>progress.</em>";
   document.querySelectorAll(".teacher-only").forEach((node) => { node.hidden = state.role !== "teacher"; });
   document.querySelectorAll(".student-only").forEach((node) => { node.hidden = state.role !== "student"; });
-  setHidden("role-switch", true);
   setHidden("class-picker-wrap", !(state.role === "teacher" && state.classrooms.length > 1));
   if (state.role === "student") document.querySelectorAll(".teacher-only").forEach((node) => { node.hidden = true; });
   setHidden("switch-account", true);
@@ -687,7 +683,6 @@ function bindUI() {
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeModal(backdrop); }));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.querySelectorAll(".modal-backdrop.open").forEach(closeModal); closeChatContextMenu(); closeAssignmentActionMenu(); } });
   document.addEventListener("click", (event) => { if (!event.target.closest(".chat-context-menu, .chat-message-menu-trigger")) closeChatContextMenu(); if (!event.target.closest(".assignment-context-menu, .assignment-menu-trigger")) closeAssignmentActionMenu(); });
-  $("role-switch").addEventListener("click", () => { const next = state.role === "teacher" ? "student" : "teacher"; setRole(next); toast(next === "student" ? "Student view is ready. Choose a learner from the class list in teacher view." : "You’re back in teacher view."); });
   $("save-attendance").addEventListener("click", saveAttendance); $("attendance-date").addEventListener("change", renderAttendance);
   $("submission-form").addEventListener("submit", saveSubmission); $("announcement-form").addEventListener("submit", addAnnouncement);
   $("switch-account").addEventListener("click", () => { renderAccountPicker(); openModal("switch-account-modal"); });
